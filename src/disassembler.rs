@@ -18,7 +18,16 @@ impl Disassembler {
                 AddressingMode::Indirect => {
                     format!(" (${:04X})", LittleEndian::read_u16(&raw[i + 0x01..]))
                 }
-                AddressingMode::Relative => format!(" #${:02X}", raw[i + 0x01]),
+                AddressingMode::Relative => {
+                    let mut offset = raw[i + 0x01] as i8;
+                    println!("i: {}, Offset: {}, op: {}", i, offset, opcode.mnemonic);
+                    let addr = if offset < 0 {
+                        i - (-offset - 0x02) as usize
+                    } else {
+                        i + (offset as usize) + 0x02
+                    };
+                    format!(" ${:04X}", addr)
+                }
                 AddressingMode::ZeroPage => format!(" ${:02X}", raw[i + 0x01]),
                 AddressingMode::ZeroPageX => format!(" ${:02X},X", raw[i + 0x01]),
                 AddressingMode::ZeroPageY => format!(" ${:02X},Y", raw[i + 0x01]),
@@ -34,7 +43,7 @@ impl Disassembler {
                 AddressingMode::IndirectX => format!(" (${:02X},X)", raw[i + 0x01]),
                 AddressingMode::IndirectY => format!(" (${:02X}),Y", raw[i + 0x01]),
             };
-            let opcode_text = format!("{}{}\n", opcode.mnemonic, val);
+            let opcode_text = format!("{:04X} {}{}\n", i, opcode.mnemonic, val);
             result.push_str(&opcode_text);
             i += opcode.length as usize;
         }
@@ -69,8 +78,8 @@ mod tests {
 
         assert_eq!(Disassembler::clean_asm("
         
-            LDA #$20
-            STA $4400
+            0000 LDA #$20
+            0002 STA $4400
 
         "),
                    Disassembler::clean_asm(asm));
@@ -83,7 +92,7 @@ mod tests {
 
         assert_eq!(Disassembler::clean_asm("
         
-            JMP ($4400)
+            0000 JMP ($4400)
 
         "),
                    Disassembler::clean_asm(asm));
@@ -91,12 +100,14 @@ mod tests {
 
     #[test]
     fn can_disassemble_relative_addressing() {
-        let code: Vec<u8> = vec![0xD0, 0xFF];
+        let code: Vec<u8> = vec![0xA9, 0x20, 0x69, 0x10, 0xD0, 0xFA];
         let asm = Disassembler::disassemble(&code);
 
         assert_eq!(Disassembler::clean_asm("
         
-            BNE #$FF
+            0000 LDA #$20
+            0002 ADC #$10
+            0004 BNE $0000
 
         "),
                    Disassembler::clean_asm(asm));
@@ -109,7 +120,7 @@ mod tests {
 
         assert_eq!(Disassembler::clean_asm("
         
-            LDA $35
+            0000 LDA $35
 
         "),
                    Disassembler::clean_asm(asm));
@@ -122,8 +133,8 @@ mod tests {
 
         assert_eq!(Disassembler::clean_asm("
         
-            STA $44,X
-            STX $FE,Y
+            0000 STA $44,X
+            0002 STX $FE,Y
 
         "),
                    Disassembler::clean_asm(asm));
@@ -136,7 +147,7 @@ mod tests {
 
         assert_eq!(Disassembler::clean_asm("
         
-            STA $4400
+            0000 STA $4400
 
         "),
                    Disassembler::clean_asm(asm));
@@ -149,8 +160,8 @@ mod tests {
 
         assert_eq!(Disassembler::clean_asm("
         
-            STA $4400,X
-            STA $FFFE,Y
+            0000 STA $4400,X
+            0003 STA $FFFE,Y
 
         "),
                    Disassembler::clean_asm(asm));
@@ -163,8 +174,8 @@ mod tests {
 
         assert_eq!(Disassembler::clean_asm("
         
-            STA ($44,X)
-            STA ($FE),Y
+            0000 STA ($44,X)
+            0002 STA ($FE),Y
 
         "),
                    Disassembler::clean_asm(asm));
@@ -179,6 +190,29 @@ mod tests {
 
         let asm = Disassembler::disassemble(&code);
 
-        print!("{}", asm);
+        assert_eq!(Disassembler::clean_asm("
+
+0000 LDY #$00
+0002 LDX $0000
+0005 BEQ $0017
+0007 LDA ($02),Y
+0009 STA ($03),Y
+000B INY
+000C BNE $0007
+000E INC $0002
+0011 INC $0003
+0014 DEX
+0015 BNE $0007
+0017 LDX $0001
+001A BEQ $0024
+001C LDA ($02),Y
+001E STA ($03),Y
+0020 INY
+0021 DEX
+0022 BNE $001C
+0024 RTS
+
+        "),
+                   Disassembler::clean_asm(asm));
     }
 }
