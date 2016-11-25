@@ -32,9 +32,26 @@ mod tests {
         let code: Vec<u8> = vec![0xA9, 0x20, 0x8D, 0x00, 0x44];
         let asm = disassemble(&code);
 
-        assert_eq!("LDA #$20
-STA $4400
-",
-                   asm);
+        assert_eq!(clean_asm("
+        
+            LDA #$20
+            STA $4400
+
+        "),
+                   clean_asm(asm));
+    }
+
+    /// Returns a Vector of Strings where each entry
+    /// is a non-empty line from some text input, with
+    /// all leading and trailing whitespace removed.
+    fn clean_asm<I>(input: I) -> Vec<String>
+        where I: Into<String>
+    {
+        input.into()
+            .lines()
+            .map(|line| line.trim())
+            .map(String::from)
+            .filter(|line| line.len() > 0)
+            .collect()
     }
 }
