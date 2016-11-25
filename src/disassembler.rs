@@ -12,15 +12,12 @@ impl Disassembler {
         while i < raw.len() {
             let opcode = OpCode::from_raw_byte(raw[i]);
             let val = match opcode.mode {
-                AddressingMode::Implied |
-                AddressingMode::Accumulator => String::from(""),
                 AddressingMode::Immediate => format!(" #${:02X}", raw[i + 0x01]),
                 AddressingMode::Indirect => {
                     format!(" (${:04X})", LittleEndian::read_u16(&raw[i + 0x01..]))
                 }
                 AddressingMode::Relative => {
                     let mut offset = raw[i + 0x01] as i8;
-                    println!("i: {}, Offset: {}, op: {}", i, offset, opcode.mnemonic);
                     let addr = if offset < 0 {
                         i - (-offset - 0x02) as usize
                     } else {
@@ -42,6 +39,7 @@ impl Disassembler {
                 }
                 AddressingMode::IndirectX => format!(" (${:02X},X)", raw[i + 0x01]),
                 AddressingMode::IndirectY => format!(" (${:02X}),Y", raw[i + 0x01]),
+                _ => "".into(),
             };
             let opcode_text = format!("{:04X} {}{}\n", i, opcode.mnemonic, val);
             result.push_str(&opcode_text);
@@ -211,6 +209,25 @@ mod tests {
             0021 DEX
             0022 BNE $001C
             0024 RTS
+
+        "),
+                   Disassembler::clean_asm(asm));
+    }
+
+    #[test]
+    fn test_memset_implementation() {
+        let code: Vec<u8> = vec![0xA9, 0x00, 0xA8, 0x91, 0xFF, 0xC8, 0xCA, 0xD0, 0xFA, 0x60];
+        let asm = Disassembler::disassemble(&code);
+
+        assert_eq!(Disassembler::clean_asm("
+
+            0000 LDA #$00
+            0002 TAY
+            0003 STA ($FF),Y
+            0005 INY
+            0006 DEX
+            0007 BNE $0003
+            0009 RTS
 
         "),
                    Disassembler::clean_asm(asm));
