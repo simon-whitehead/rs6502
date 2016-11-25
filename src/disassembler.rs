@@ -192,25 +192,25 @@ mod tests {
 
         assert_eq!(Disassembler::clean_asm("
 
-0000 LDY #$00
-0002 LDX $0000
-0005 BEQ $0017
-0007 LDA ($02),Y
-0009 STA ($03),Y
-000B INY
-000C BNE $0007
-000E INC $0002
-0011 INC $0003
-0014 DEX
-0015 BNE $0007
-0017 LDX $0001
-001A BEQ $0024
-001C LDA ($02),Y
-001E STA ($03),Y
-0020 INY
-0021 DEX
-0022 BNE $001C
-0024 RTS
+            0000 LDY #$00
+            0002 LDX $0000
+            0005 BEQ $0017
+            0007 LDA ($02),Y
+            0009 STA ($03),Y
+            000B INY
+            000C BNE $0007
+            000E INC $0002
+            0011 INC $0003
+            0014 DEX
+            0015 BNE $0007
+            0017 LDX $0001
+            001A BEQ $0024
+            001C LDA ($02),Y
+            001E STA ($03),Y
+            0020 INY
+            0021 DEX
+            0022 BNE $001C
+            0024 RTS
 
         "),
                    Disassembler::clean_asm(asm));
