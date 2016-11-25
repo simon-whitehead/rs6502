@@ -11,8 +11,15 @@ pub fn disassemble(raw: &[u8]) -> String {
         let val = match opcode.mode {
             AddressingMode::Implied |
             AddressingMode::Accumulator => String::from(""),
-            AddressingMode::Immediate => format!(" #${:X}", raw[i + 1]),
-            AddressingMode::Absolute => format!(" ${:X}", LittleEndian::read_u16(&raw[i + 1..])),
+            AddressingMode::Immediate => format!(" #${:X}", raw[i + 0x01]),
+            AddressingMode::Indirect => {
+                format!(" (${:X})", LittleEndian::read_u16(&raw[i + 0x01..]))
+            }
+            AddressingMode::Relative => format!(" #${:X}", raw[i + 0x01]),
+            AddressingMode::Absolute => format!(" ${:X}", LittleEndian::read_u16(&raw[i + 0x01..])),
+            AddressingMode::ZeroPage => format!(" ${:X}", raw[i + 0x01]),
+            AddressingMode::ZeroPageX => format!(" ${:X},X", raw[i + 0x01]),
+            AddressingMode::ZeroPageY => format!(" ${:X},Y", raw[i + 0x01]),
             _ => String::from(""),
         };
         let opcode_text = format!("{}{}\n", opcode.mnemonic, val);
@@ -36,6 +43,59 @@ mod tests {
         
             LDA #$20
             STA $4400
+
+        "),
+                   clean_asm(asm));
+    }
+
+    #[test]
+    fn can_disassemble_indirect_jmp() {
+        let code: Vec<u8> = vec![0x6C, 0x00, 0x44];
+        let asm = disassemble(&code);
+
+        assert_eq!(clean_asm("
+        
+            JMP ($4400)
+
+        "),
+                   clean_asm(asm));
+    }
+
+    #[test]
+    fn can_disassemble_relative_addressing() {
+        let code: Vec<u8> = vec![0xD0, 0xFF];
+        let asm = disassemble(&code);
+
+        assert_eq!(clean_asm("
+        
+            BNE #$FF
+
+        "),
+                   clean_asm(asm));
+    }
+
+    #[test]
+    fn can_disassemble_zero_page_addressing() {
+        let code: Vec<u8> = vec![0xA5, 0x35];
+        let asm = disassemble(&code);
+
+        assert_eq!(clean_asm("
+        
+            LDA $35
+
+        "),
+                   clean_asm(asm));
+    }
+
+    #[test]
+    fn can_disassemble_zero_page_indexed_addressing() {
+        let code: Vec<u8> = vec![0x95, 0x44, 0x96, 0xFE];
+        let asm = disassemble(&code);
+
+        assert_eq!(clean_asm("
+        
+            STA $44,X
+            STX $FE,Y
 
         "),
                    clean_asm(asm));
