@@ -6,6 +6,7 @@ mod opcodes;
 mod registers;
 
 pub use cpu::Cpu;
+pub use disassembler::Disassembler;
 
 #[cfg(test)]
 mod tests {

@@ -4,7 +4,24 @@ use opcodes::{AddressingMode, OpCode};
 
 pub struct Disassembler;
 
+/// A 6502 instruction disassembler
 impl Disassembler {
+    /// Accepts a slice of 6502 bytecodes and translates them
+    /// into an assembly String representation
+    ///
+    /// # Example
+    /// ```
+    /// use rs6502::Disassembler;
+    ///
+    /// let code: Vec<u8> = vec![0xA9, 0x20, 0x8D, 0x00, 0x44];
+    /// let asm = Disassembler::disassemble(&code);
+    ///
+    /// assert_eq!(Disassembler::clean_asm("
+    ///
+    ///     0000 LDA #$20
+    ///     0002 STA $4400
+    /// "), Disassembler::clean_asm(asm));
+    /// ```
     pub fn disassemble(raw: &[u8]) -> String {
         let mut result = String::new();
 
@@ -50,9 +67,9 @@ impl Disassembler {
     }
 
     /// Returns a Vector of Strings where each entry
-    /// is a non-empty line from some text input, with
+    /// is a non-empty line of assembly instructions, with
     /// all leading and trailing whitespace removed.
-    fn clean_asm<I>(input: I) -> Vec<String>
+    pub fn clean_asm<I>(input: I) -> Vec<String>
         where I: Into<String>
     {
         input.into()
