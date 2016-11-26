@@ -1,3 +1,7 @@
-# 6502
+# rs6502
 ---
-A 6502 microprocessor emulator.
+A crate for the 6502 microprocessor.
+
+This crate includes:
+
+* A 6502 disassembler.
