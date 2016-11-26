@@ -240,6 +240,21 @@ mod tests {
     }
 
     #[test]
+    fn can_disassemble_without_byte_offsets() {
+        let dasm = Disassembler::with_code_only();
+        let code: Vec<u8> = vec![0x81, 0x35, 0x91, 0xFE];
+        let asm = dasm.disassemble(&code);
+
+        assert_eq!(Disassembler::clean_asm("
+        
+            STA ($35,X)
+            STA ($FE),Y
+
+        "),
+                   Disassembler::clean_asm(asm));
+    }
+
+    #[test]
     fn move_memory_down_test() {
         let dasm = Disassembler::new();
         let code: Vec<u8> = vec![0xA0, 0x00, 0xAE, 0x00, 0x00, 0xF0, 0x10, 0xB1, 0x02, 0x91, 0x03,
