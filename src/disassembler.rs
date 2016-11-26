@@ -6,19 +6,89 @@ pub struct Disassembler {
     /// Determines whether byte offsets are generated
     /// in the Assembly output
     disable_offsets: bool,
+
+    /// Determines whether opcodes are generated
+    /// in the Assembly output
+    disable_opcodes: bool,
 }
 
 /// A 6502 instruction disassembler
 impl Disassembler {
     /// Creates a new, default instance of the Disassembler
+    ///
+    /// # Example
+    /// ```
+    /// use rs6502::Disassembler;
+    ///
+    /// let dasm = Disassembler::new();
+    ///
+    /// let code: Vec<u8> = vec![0xA9, 0x20, 0x8D, 0x00, 0x44];
+    /// let asm = dasm.disassemble(&code);
+    ///
+    /// assert_eq!(Disassembler::clean_asm("
+    ///
+    ///     0000 LDA #$20
+    ///     0002 STA $4400
+    ///
+    /// "), Disassembler::clean_asm(asm));
+    /// ```
     pub fn new() -> Disassembler {
-        Disassembler { disable_offsets: false }
+        Disassembler {
+            disable_offsets: false,
+            disable_opcodes: true,
+        }
     }
 
     /// Creates an instance of the Disassembler where no
     /// byte offsets are generated in the Assembly output
+    ///
+    /// # Example
+    /// ```
+    /// use rs6502::Disassembler;
+    ///
+    /// let dasm = Disassembler::with_code_only();
+    ///
+    /// let code: Vec<u8> = vec![0xA9, 0x20, 0x8D, 0x00, 0x44];
+    /// let asm = dasm.disassemble(&code);
+    ///
+    /// assert_eq!(Disassembler::clean_asm("
+    ///
+    ///     LDA #$20
+    ///     STA $4400
+    ///
+    /// "), Disassembler::clean_asm(asm));
+    /// ```
     pub fn with_code_only() -> Disassembler {
-        Disassembler { disable_offsets: true }
+        Disassembler {
+            disable_offsets: true,
+            disable_opcodes: true,
+        }
+    }
+
+    /// Creates an instance of the Disassembler with all
+    /// available information generated into the output
+    ///
+    /// # Example
+    /// ```
+    /// use rs6502::Disassembler;
+    ///
+    /// let dasm = Disassembler::with_verbose_output();
+    ///
+    /// let code: Vec<u8> = vec![0xA9, 0x20, 0x8D, 0x00, 0x44];
+    /// let asm = dasm.disassemble(&code);
+    ///
+    /// assert_eq!(Disassembler::clean_asm("
+    ///
+    ///     0000 A9 20    LDA #$20
+    ///     0002 8D 00 44 STA $4400
+    ///
+    /// "), Disassembler::clean_asm(asm));
+    /// ```
+    pub fn with_verbose_output() -> Disassembler {
+        Disassembler {
+            disable_offsets: false,
+            disable_opcodes: false,
+        }
     }
 
     /// Accepts a slice of 6502 bytecodes and translates them
@@ -46,40 +116,90 @@ impl Disassembler {
         let mut i: usize = 0;
         while i < raw.len() {
             let opcode = OpCode::from_raw_byte(raw[i]);
+
+            // Each branch returns the opcode output and the
+            // disassembled output
             let val = match opcode.mode {
-                AddressingMode::Immediate => format!(" #${:02X}", raw[i + 0x01]),
+                AddressingMode::Immediate => {
+                    let imm = raw[i + 0x01];
+                    (format!("{:02X} {:02X}", opcode.code, imm), format!(" #${:02X}", imm))
+                }
                 AddressingMode::Indirect => {
-                    format!(" (${:04X})", LittleEndian::read_u16(&raw[i + 0x01..]))
+                    let b1 = raw[i + 0x01];
+                    let b2 = raw[i + 0x02];
+
+                    let addr = LittleEndian::read_u16(&[b1, b2]);
+
+                    (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
+                     format!(" (${:04X})", addr))
                 }
                 AddressingMode::Relative => {
-                    let mut offset = raw[i + 0x01] as i8;
+                    let b1 = raw[i + 0x01];
+                    let mut offset = b1 as i8;
                     let addr = if offset < 0 {
                         i - (-offset - 0x02) as usize
                     } else {
                         i + (offset as usize) + 0x02
                     };
-                    format!(" ${:04X}", addr)
+
+                    (format!(" {:02X} {:02X}", opcode.code, b1), format!(" ${:04X}", addr))
                 }
-                AddressingMode::ZeroPage => format!(" ${:02X}", raw[i + 0x01]),
-                AddressingMode::ZeroPageX => format!(" ${:02X},X", raw[i + 0x01]),
-                AddressingMode::ZeroPageY => format!(" ${:02X},Y", raw[i + 0x01]),
+                AddressingMode::ZeroPage => {
+                    let b1 = raw[i + 0x01];
+                    (format!("{:02X} {:02X}", opcode.code, b1), format!(" ${:02X}", b1))
+                }
+                AddressingMode::ZeroPageX => {
+                    let b1 = raw[i + 0x01];
+                    (format!("{:02X} {:02X}", opcode.code, b1), format!(" ${:02X},X", b1))
+                }
+                AddressingMode::ZeroPageY => {
+                    let b1 = raw[i + 0x01];
+                    (format!("{:02X} {:02X}", opcode.code, b1), format!(" ${:02X},Y", b1))
+                }
                 AddressingMode::Absolute => {
-                    format!(" ${:04X}", LittleEndian::read_u16(&raw[i + 0x01..]))
+                    let b1 = raw[i + 0x01];
+                    let b2 = raw[i + 0x02];
+                    let addr = LittleEndian::read_u16(&[b1, b2]);
+                    (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
+                     format!(" ${:04X}", addr))
                 }
                 AddressingMode::AbsoluteX => {
-                    format!(" ${:04X},X", LittleEndian::read_u16(&raw[i + 0x01..]))
+                    let b1 = raw[i + 0x01];
+                    let b2 = raw[i + 0x02];
+                    let addr = LittleEndian::read_u16(&[b1, b2]);
+                    (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
+                     format!(" ${:04X},X", addr))
                 }
                 AddressingMode::AbsoluteY => {
-                    format!(" ${:04X},Y", LittleEndian::read_u16(&raw[i + 0x01..]))
+                    let b1 = raw[i + 0x01];
+                    let b2 = raw[i + 0x02];
+                    let addr = LittleEndian::read_u16(&[b1, b2]);
+                    (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
+                     format!(" ${:04X},Y", addr))
                 }
-                AddressingMode::IndirectX => format!(" (${:02X},X)", raw[i + 0x01]),
-                AddressingMode::IndirectY => format!(" (${:02X}),Y", raw[i + 0x01]),
-                _ => "".into(),
+                AddressingMode::IndirectX => {
+                    let b1 = raw[i + 0x01];
+                    (format!("{:02X} {:02X}", opcode.code, b1), format!(" (${:02X},X)", b1))
+                }
+                AddressingMode::IndirectY => {
+                    let b1 = raw[i + 0x01];
+                    (format!(" {:02X} {:02X}", opcode.code, b1), format!(" (${:02X}),Y", b1))
+                }
+                _ => ("".into(), "".into()),
             };
+
             let opcode_text = if self.disable_offsets {
-                format!("{}{}\n", opcode.mnemonic, val)
+                if self.disable_opcodes {
+                    format!("{}{}\n", opcode.mnemonic, val.1)
+                } else {
+                    format!("{:<8} {}{}\n", val.0, opcode.mnemonic, val.1)
+                }
             } else {
-                format!("{:04X} {}{}\n", i, opcode.mnemonic, val)
+                if self.disable_opcodes {
+                    format!("{:04X} {}{}\n", i, opcode.mnemonic, val.1)
+                } else {
+                    format!("{:04X} {:<8} {}{}\n", i, val.0, opcode.mnemonic, val.1)
+                }
             };
             result.push_str(&opcode_text);
             i += opcode.length as usize;
