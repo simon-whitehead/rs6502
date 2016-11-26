@@ -2,10 +2,25 @@ use byteorder::{ByteOrder, LittleEndian};
 
 use opcodes::{AddressingMode, OpCode};
 
-pub struct Disassembler;
+pub struct Disassembler {
+    /// Determines whether byte offsets are generated
+    /// in the Assembly output
+    just_code: bool,
+}
 
 /// A 6502 instruction disassembler
 impl Disassembler {
+    /// Creates a new, default instance of the Disassembler
+    pub fn new() -> Disassembler {
+        Disassembler { just_code: false }
+    }
+
+    /// Creates an instance of the Disassembler where no
+    /// byte offsets are generated in the Assembly output
+    pub fn with_code_only() -> Disassembler {
+        Disassembler { just_code: true }
+    }
+
     /// Accepts a slice of 6502 bytecodes and translates them
     /// into an assembly String representation
     ///
@@ -13,8 +28,10 @@ impl Disassembler {
     /// ```
     /// use rs6502::Disassembler;
     ///
+    /// let dasm = Disassembler::new();
+    ///
     /// let code: Vec<u8> = vec![0xA9, 0x20, 0x8D, 0x00, 0x44];
-    /// let asm = Disassembler::disassemble(&code);
+    /// let asm = dasm.disassemble(&code);
     ///
     /// assert_eq!(Disassembler::clean_asm("
     ///
@@ -23,7 +40,7 @@ impl Disassembler {
     ///
     /// "), Disassembler::clean_asm(asm));
     /// ```
-    pub fn disassemble(raw: &[u8]) -> String {
+    pub fn disassemble(&self, raw: &[u8]) -> String {
         let mut result = String::new();
 
         let mut i: usize = 0;
@@ -59,7 +76,11 @@ impl Disassembler {
                 AddressingMode::IndirectY => format!(" (${:02X}),Y", raw[i + 0x01]),
                 _ => "".into(),
             };
-            let opcode_text = format!("{:04X} {}{}\n", i, opcode.mnemonic, val);
+            let opcode_text = if self.just_code {
+                format!("{}{}\n", opcode.mnemonic, val)
+            } else {
+                format!("{:04X} {}{}\n", i, opcode.mnemonic, val)
+            };
             result.push_str(&opcode_text);
             i += opcode.length as usize;
         }
@@ -102,8 +123,9 @@ mod tests {
 
     #[test]
     fn can_disassemble_basic_instructions() {
+        let dasm = Disassembler::new();
         let code: Vec<u8> = vec![0xA9, 0x20, 0x8D, 0x00, 0x44];
-        let asm = Disassembler::disassemble(&code);
+        let asm = dasm.disassemble(&code);
 
         assert_eq!(Disassembler::clean_asm("
         
@@ -116,8 +138,9 @@ mod tests {
 
     #[test]
     fn can_disassemble_indirect_jmp() {
+        let dasm = Disassembler::new();
         let code: Vec<u8> = vec![0x6C, 0x00, 0x44];
-        let asm = Disassembler::disassemble(&code);
+        let asm = dasm.disassemble(&code);
 
         assert_eq!(Disassembler::clean_asm("
         
@@ -129,8 +152,9 @@ mod tests {
 
     #[test]
     fn can_disassemble_relative_addressing() {
+        let dasm = Disassembler::new();
         let code: Vec<u8> = vec![0xA9, 0x20, 0x69, 0x10, 0xD0, 0xFA];
-        let asm = Disassembler::disassemble(&code);
+        let asm = dasm.disassemble(&code);
 
         assert_eq!(Disassembler::clean_asm("
         
@@ -144,8 +168,9 @@ mod tests {
 
     #[test]
     fn can_disassemble_zero_page_addressing() {
+        let dasm = Disassembler::new();
         let code: Vec<u8> = vec![0xA5, 0x35];
-        let asm = Disassembler::disassemble(&code);
+        let asm = dasm.disassemble(&code);
 
         assert_eq!(Disassembler::clean_asm("
         
@@ -157,8 +182,9 @@ mod tests {
 
     #[test]
     fn can_disassemble_zero_page_indexed_addressing() {
+        let dasm = Disassembler::new();
         let code: Vec<u8> = vec![0x95, 0x44, 0x96, 0xFE];
-        let asm = Disassembler::disassemble(&code);
+        let asm = dasm.disassemble(&code);
 
         assert_eq!(Disassembler::clean_asm("
         
@@ -171,8 +197,9 @@ mod tests {
 
     #[test]
     fn can_disassemble_absolute_addressing() {
+        let dasm = Disassembler::new();
         let code: Vec<u8> = vec![0x8D, 0x00, 0x44];
-        let asm = Disassembler::disassemble(&code);
+        let asm = dasm.disassemble(&code);
 
         assert_eq!(Disassembler::clean_asm("
         
@@ -184,8 +211,9 @@ mod tests {
 
     #[test]
     fn can_disassemble_absolute_indexed_addressing() {
+        let dasm = Disassembler::new();
         let code: Vec<u8> = vec![0x9D, 0x00, 0x44, 0x99, 0xFE, 0xFF];
-        let asm = Disassembler::disassemble(&code);
+        let asm = dasm.disassemble(&code);
 
         assert_eq!(Disassembler::clean_asm("
         
@@ -198,8 +226,9 @@ mod tests {
 
     #[test]
     fn can_disassemble_indirect_indexed_addressing() {
+        let dasm = Disassembler::new();
         let code: Vec<u8> = vec![0x81, 0x44, 0x91, 0xFE];
-        let asm = Disassembler::disassemble(&code);
+        let asm = dasm.disassemble(&code);
 
         assert_eq!(Disassembler::clean_asm("
         
@@ -212,12 +241,13 @@ mod tests {
 
     #[test]
     fn move_memory_down_test() {
+        let dasm = Disassembler::new();
         let code: Vec<u8> = vec![0xA0, 0x00, 0xAE, 0x00, 0x00, 0xF0, 0x10, 0xB1, 0x02, 0x91, 0x03,
                                  0xC8, 0xD0, 0xF9, 0xEE, 0x02, 0x00, 0xEE, 0x03, 0x00, 0xCA, 0xD0,
                                  0xF0, 0xAE, 0x01, 0x00, 0xF0, 0x08, 0xB1, 0x02, 0x91, 0x03, 0xC8,
                                  0xCA, 0xD0, 0xF8, 0x60];
 
-        let asm = Disassembler::disassemble(&code);
+        let asm = dasm.disassemble(&code);
 
         assert_eq!(Disassembler::clean_asm("
 
@@ -247,8 +277,9 @@ mod tests {
 
     #[test]
     fn test_memset_implementation() {
+        let dasm = Disassembler::new();
         let code: Vec<u8> = vec![0xA9, 0x00, 0xA8, 0x91, 0xFF, 0xC8, 0xCA, 0xD0, 0xFA, 0x60];
-        let asm = Disassembler::disassemble(&code);
+        let asm = dasm.disassemble(&code);
 
         assert_eq!(Disassembler::clean_asm("
 
