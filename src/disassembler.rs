@@ -20,6 +20,7 @@ impl Disassembler {
     ///
     ///     0000 LDA #$20
     ///     0002 STA $4400
+    ///
     /// "), Disassembler::clean_asm(asm));
     /// ```
     pub fn disassemble(raw: &[u8]) -> String {
@@ -69,6 +70,19 @@ impl Disassembler {
     /// Returns a Vector of Strings where each entry
     /// is a non-empty line of assembly instructions, with
     /// all leading and trailing whitespace removed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rs6502::Disassembler;
+    ///
+    /// assert_eq!(Disassembler::clean_asm("
+    ///
+    ///     0000 LDA #$20
+    ///     0002 STA $4400
+    ///
+    /// "), &["0000 LDA #$20", "0002 STA $4400"]);
+    /// ```
     pub fn clean_asm<I>(input: I) -> Vec<String>
         where I: Into<String>
     {
