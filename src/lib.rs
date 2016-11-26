@@ -1,5 +1,6 @@
 extern crate byteorder;
 
+mod assembler;
 mod cpu;
 mod disassembler;
 mod opcodes;
