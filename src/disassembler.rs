@@ -5,20 +5,20 @@ use opcodes::{AddressingMode, OpCode};
 pub struct Disassembler {
     /// Determines whether byte offsets are generated
     /// in the Assembly output
-    just_code: bool,
+    disable_offsets: bool,
 }
 
 /// A 6502 instruction disassembler
 impl Disassembler {
     /// Creates a new, default instance of the Disassembler
     pub fn new() -> Disassembler {
-        Disassembler { just_code: false }
+        Disassembler { disable_offsets: false }
     }
 
     /// Creates an instance of the Disassembler where no
     /// byte offsets are generated in the Assembly output
     pub fn with_code_only() -> Disassembler {
-        Disassembler { just_code: true }
+        Disassembler { disable_offsets: true }
     }
 
     /// Accepts a slice of 6502 bytecodes and translates them
@@ -76,7 +76,7 @@ impl Disassembler {
                 AddressingMode::IndirectY => format!(" (${:02X}),Y", raw[i + 0x01]),
                 _ => "".into(),
             };
-            let opcode_text = if self.just_code {
+            let opcode_text = if self.disable_offsets {
                 format!("{}{}\n", opcode.mnemonic, val)
             } else {
                 format!("{:04X} {}{}\n", i, opcode.mnemonic, val)
