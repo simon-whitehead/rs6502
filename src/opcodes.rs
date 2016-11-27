@@ -28,6 +28,15 @@ impl OpCode {
     pub fn from_raw_byte(byte: u8) -> OpCode {
         OpCodes.iter().find(|opcode| opcode.code == byte).expect("Invalid opcode").clone()
     }
+
+    pub fn from_mnemonic<S>(input: S) -> Option<OpCode>
+        where S: Into<String>
+    {
+        let input = input.into();
+        OpCodes.iter()
+            .find(|opcode| opcode.mnemonic == input.to_uppercase())
+            .cloned()
+    }
 }
 
 // List of OpCodes. Source: http://www.6502.org/tutorials/6502opcodes.html#ADC

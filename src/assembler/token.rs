@@ -1,8 +1,9 @@
 use opcodes::OpCode;
 
 pub enum Token {
-    Comment(&'static str),
-    Label(&'static str),
-    OpCode(OpCode),
-    ArgumentList(Vec<&'static str>),
+    Unknown(String),
+    Comment(String),
+    Label(String),
+    OpCode(String),
+    ArgumentList(Vec<String>),
 }

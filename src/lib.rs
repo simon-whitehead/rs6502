@@ -8,6 +8,7 @@ mod registers;
 
 pub use cpu::Cpu;
 pub use disassembler::Disassembler;
+pub use opcodes::OpCode;
 
 #[cfg(test)]
 mod tests {
