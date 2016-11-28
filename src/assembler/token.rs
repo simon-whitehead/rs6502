@@ -6,5 +6,7 @@ pub enum Token {
     Comment(String),
     Label(String),
     OpCode(String),
+    Immediate(String),
+    Directive(String),
     ArgumentList(Vec<String>),
 }
