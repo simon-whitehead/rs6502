@@ -92,6 +92,10 @@ impl Lexer {
                 } else if c == ';' {
                     // Skip the rest of this line
                     break;
+                } else if c == '(' {
+                    // Indirect addressing
+                    let token = Self::consume_indirect(&mut idx, line)?;
+                    tokens.push(token);
                 } else if c == '$' {
                     let token = Self::consume_address(&mut idx, line)?;
                     tokens.push(token);
@@ -223,6 +227,20 @@ impl Lexer {
         } else {
             Err(LexerError::from("Error consuming address"))
         }
+    }
+
+    fn consume_indirect(mut idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
+        let mut tok = String::new();
+        *idx += 1; // jump the opening parenthesis
+        let addr = Self::consume_address(&mut idx, &line)?;
+
+        if let Token::ZeroPageX(val) = addr {
+            // Its IndirectX
+            return Ok(Token::IndirectX(val.clone()));
+        } else {
+            println!("{:?} - Next char: {}", addr, line[*idx] as char);
+        }
+        Ok(Token::Unknown("".into()))
     }
 
     fn consume_whitespace(mut idx: &mut usize, line: &[u8]) {
@@ -375,6 +393,13 @@ mod tests {
                                         the A register")
             .unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::AbsoluteY("4400".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_handle_indirect_addressing_x_register() {
+        let tokens = Lexer::lex_string("LDA ($20,X)").unwrap();
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectX("20".into())],
                    &tokens[0][..]);
     }
 }
