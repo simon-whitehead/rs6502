@@ -193,7 +193,9 @@ impl Lexer {
                 let mut token_type = Token::Absolute(val.clone());
                 // Check for AbsoluteX
                 if *idx + 0x01 < line.len() && line[*idx] as char == ',' {
-                    let c = line[*idx + 0x01] as char;
+                    *idx += 1;  // Jump over the comma
+                    Self::consume_whitespace(&mut idx, line);
+                    let c = line[*idx] as char;
                     if c == 'X' {
                         token_type = Token::AbsoluteX(val.clone());
                     } else if c == 'Y' {
@@ -217,6 +219,20 @@ impl Lexer {
             }
         } else {
             Err(LexerError::from("Error consuming address"))
+        }
+    }
+
+    fn consume_whitespace(mut idx: &mut usize, line: &[u8]) {
+        loop {
+            if *idx < line.len() {
+                if (line[*idx] as char).is_whitespace() {
+                    *idx += 1;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
         }
     }
 
@@ -333,6 +349,20 @@ mod tests {
     fn can_figure_out_absolute_x_address_opcode() {
         let tokens = Lexer::lex_string("LDA $4400,X").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::AbsoluteX("4400".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_figure_out_absolute_y_address_opcode() {
+        let tokens = Lexer::lex_string("LDA $4400,Y").unwrap();
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::AbsoluteY("4400".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_figure_out_absolute_y_address_opcode_when_excess_whitespace() {
+        let tokens = Lexer::lex_string("LDA $4400,        Y").unwrap();
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::AbsoluteY("4400".into())],
                    &tokens[0][..]);
     }
 }
