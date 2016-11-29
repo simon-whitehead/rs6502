@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::str;
 
-use assembler::token::Token;
+use assembler::token::{ImmediateBase, Token};
 use ::opcodes::OpCode;
 
 #[derive(Debug, PartialEq)]
@@ -130,8 +130,22 @@ impl Lexer {
         let mut tok = String::new();
         // Very next character should be a dollar sign
         let c = line[*idx + 0x01] as char;
+        let mut base = ImmediateBase::Base16;
         if c != '$' {
-            return Err(LexerError::unexpected_ident('$', c));
+            let mut c = line[*idx + 0x02] as char;
+            if c.is_digit(10) {
+                *idx += 0x02;
+                base = ImmediateBase::Base10;
+                // Consume every number
+                while !c.is_digit(10) {
+                    c = line[*idx] as char;
+                    tok.push(c);
+                }
+
+                return Ok(Token::Immediate(tok.clone(), base));
+            } else {
+                return Err(LexerError::unexpected_ident("{digit}", line[*idx + 0x01] as char));
+            }
         }
 
         let c = line[*idx + 0x02] as char;
@@ -143,9 +157,9 @@ impl Lexer {
 
         let c = line[*idx + 0x03] as char;
         if c.is_digit(16) {
-            let val = &line[*idx..*idx + 0x04];
+            let val = &line[*idx + 0x02..*idx + 0x04];
             *idx += 0x04;
-            return Ok(Self::classify(str::from_utf8(val).unwrap().into()));
+            return Ok(Token::Immediate(str::from_utf8(val).unwrap().into(), base));
         } else {
             return Err(LexerError::unexpected_ident("{hex_digit}", c));
         }
@@ -157,8 +171,6 @@ impl Lexer {
         let mut tok = String::from(input);
         if let Some(opcode) = OpCode::from_mnemonic(tok.clone()) {
             Token::OpCode(tok.clone())
-        } else if tok.as_bytes()[0] == b'#' {
-            Token::Immediate((&tok[2..]).into())
         } else {
             Token::Label(input.into())
         }
@@ -168,7 +180,7 @@ impl Lexer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ::assembler::token::Token;
+    use ::assembler::token::{ImmediateBase, Token};
 
     #[test]
     fn can_classify_simple_labels_and_opcodes() {
@@ -177,7 +189,8 @@ mod tests {
         ")
             .unwrap();
 
-        assert_eq!(&[Token::OpCode("LDA".into()), Token::Immediate("20".into())],
+        assert_eq!(&[Token::OpCode("LDA".into()),
+                     Token::Immediate("20".into(), ImmediateBase::Base16)],
                    &tokens[0][..]);
     }
 
@@ -190,7 +203,7 @@ mod tests {
 
         assert_eq!(&[Token::Directive("LOL".into()),
                      Token::OpCode("LDA".into()),
-                     Token::Immediate("20".into())],
+                     Token::Immediate("20".into(), ImmediateBase::Base16)],
                    &tokens[0][..]);
     }
 
@@ -200,7 +213,7 @@ mod tests {
 
         assert_eq!(&[Token::Label("MAIN".into()),
                      Token::OpCode("LDA".into()),
-                     Token::Immediate("20".into())],
+                     Token::Immediate("20".into(), ImmediateBase::Base16)],
                    &tokens[0][..]);
     }
 
@@ -225,6 +238,6 @@ mod tests {
         assert_eq!(Lexer::lex_string("
             LDA #@hotmail.com
         "),
-                   Err(LexerError::unexpected_ident("$", "@")));
+                   Err(LexerError::unexpected_ident("{digit}", "@")));
     }
 }
