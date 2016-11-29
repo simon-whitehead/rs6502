@@ -128,38 +128,49 @@ impl Lexer {
 
     fn consume_immediate(idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
         let mut tok = String::new();
-        // Very next character should be a dollar sign
-        let c = line[*idx + 0x01] as char;
+        *idx += 1;
+        let mut c = line[*idx] as char;
         let mut base = ImmediateBase::Base16;
+
+        // Very next character should be a dollar sign
         if c != '$' {
-            let mut c = line[*idx + 0x02] as char;
             if c.is_digit(10) {
-                *idx += 0x02;
                 base = ImmediateBase::Base10;
                 // Consume every number
-                while !c.is_digit(10) {
-                    c = line[*idx] as char;
-                    tok.push(c);
+                loop {
+                    if c.is_digit(10) {
+                        tok.push(c);
+                        *idx += 1;
+                        if *idx < line.len() {
+                            c = line[*idx] as char;
+                        } else {
+                            break;
+                        }
+                    } else {
+                        return Err(LexerError::unexpected_ident("{digit}", c));
+                    }
                 }
 
                 return Ok(Token::Immediate(tok.clone(), base));
             } else {
-                return Err(LexerError::unexpected_ident("{digit}", line[*idx + 0x01] as char));
+                return Err(LexerError::unexpected_ident("{digit}", c));
             }
         }
 
-        let c = line[*idx + 0x02] as char;
+        *idx += 1;
+        let c = line[*idx] as char;
         if c.is_digit(16) {
             tok.push(c as char);
         } else {
             return Err(LexerError::unexpected_ident("{hex_digit}", c));
         }
 
-        let c = line[*idx + 0x03] as char;
+        *idx += 1;
+        let c = line[*idx] as char;
         if c.is_digit(16) {
-            let val = &line[*idx + 0x02..*idx + 0x04];
-            *idx += 0x04;
-            return Ok(Token::Immediate(str::from_utf8(val).unwrap().into(), base));
+            tok.push(c);
+            *idx += 0x02;
+            return Ok(Token::Immediate(str::from_utf8(&tok[..].as_bytes()).unwrap().into(), base));
         } else {
             return Err(LexerError::unexpected_ident("{hex_digit}", c));
         }
@@ -239,5 +250,19 @@ mod tests {
             LDA #@hotmail.com
         "),
                    Err(LexerError::unexpected_ident("{digit}", "@")));
+    }
+
+    #[test]
+    fn immediate_values_accept_base_ten() {
+        let tokens = Lexer::lex_string("LDA #10").unwrap();
+        assert_eq!(&[Token::OpCode("LDA".into()),
+                     Token::Immediate("10".into(), ImmediateBase::Base10)],
+                   &tokens[0][..]);
+    }
+
+    #[test]
+    fn immediate_values_base_ten_does_not_accept_hex() {
+        assert_eq!(Lexer::lex_string("LDA #1A"),
+                   Err(LexerError::unexpected_ident("{digit}", "A")));
     }
 }
