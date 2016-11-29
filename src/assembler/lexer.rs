@@ -195,6 +195,16 @@ mod tests {
     }
 
     #[test]
+    fn can_classify_labels() {
+        let tokens = Lexer::lex_string("MAIN: LDA #$20").unwrap();
+
+        assert_eq!(&[Token::Label("MAIN".into()),
+                     Token::OpCode("LDA".into()),
+                     Token::Immediate("20".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
     fn immediate_values_throw_errors_when_invalid() {
         assert_eq!(Lexer::lex_string("
             LDA #$INVALID20
