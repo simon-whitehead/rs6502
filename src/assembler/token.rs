@@ -13,6 +13,12 @@ pub enum Token {
     Label(String),
     OpCode(String),
     Immediate(String, ImmediateBase),
+    ZeroPage(String),
+    ZeroPageX(String),
+    Absolute(String),
+    AbsoluteX(String),
+    AbsoluteY(String),
+    IndirectX(String),
+    IndirectY(String),
     Directive(String),
-    ArgumentList(Vec<String>),
 }

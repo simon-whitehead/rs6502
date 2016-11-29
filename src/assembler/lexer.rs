@@ -89,8 +89,11 @@ impl Lexer {
                 if c.is_alphanumeric() {
                     let token = Self::consume_alphanumeric(&mut idx, line)?;
                     tokens.push(token);
+                } else if c == '$' {
+                    let token = Self::consume_address(&mut idx, line)?;
+                    tokens.push(token);
                 } else if c == '#' {
-                    let token = Self::consume_immediate(&mut idx, line)?;
+                    let token = Self::consume_number(&mut idx, line)?;
                     tokens.push(token);
                 } else if c == '.' {
                     idx += 1;
@@ -126,7 +129,7 @@ impl Lexer {
         Err("ERR: An error occurred while consuming an alphanumeric identifier".into())
     }
 
-    fn consume_immediate(idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
+    fn consume_number(idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
         let mut tok = String::new();
         *idx += 1;
         let mut c = line[*idx] as char;
@@ -147,7 +150,11 @@ impl Lexer {
                             break;
                         }
                     } else {
-                        return Err(LexerError::unexpected_ident("{digit}", c));
+                        if c == ',' {
+                            break;
+                        } else {
+                            return Err(LexerError::unexpected_ident("{digit}", c));
+                        }
                     }
                 }
 
@@ -176,6 +183,41 @@ impl Lexer {
         }
 
         Err("An error occurred while consuming an immediate identifier".into())
+    }
+
+    fn consume_address(mut idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
+        let mut tok = String::new();
+        if let Token::Immediate(val, _) = Self::consume_number(&mut idx, &line)? {
+            // If the length is greater than 2.. its not a Zero Page address
+            if val.len() > 2 {
+                let mut token_type = Token::Absolute(val.clone());
+                // Check for AbsoluteX
+                if *idx + 0x01 < line.len() && line[*idx] as char == ',' {
+                    let c = line[*idx + 0x01] as char;
+                    if c == 'X' {
+                        token_type = Token::AbsoluteX(val.clone());
+                    } else if c == 'Y' {
+                        token_type = Token::AbsoluteY(val.clone());
+                    }
+                    *idx += 0x02;
+                }
+
+                Ok(token_type)
+            } else {
+                let mut token_type = Token::ZeroPage(val.clone());
+
+                // Check for ZeroPageX:
+                if *idx + 0x01 < line.len() && line[*idx] as char == ',' &&
+                   line[*idx + 0x01] as char == 'X' {
+                    token_type = Token::ZeroPageX(val.clone());
+                    *idx += 0x02;
+                }
+
+                Ok(token_type)
+            }
+        } else {
+            Err(LexerError::from("Error consuming address"))
+        }
     }
 
     fn classify(input: &str) -> Token {
@@ -264,5 +306,33 @@ mod tests {
     fn immediate_values_base_ten_does_not_accept_hex() {
         assert_eq!(Lexer::lex_string("LDA #1A"),
                    Err(LexerError::unexpected_ident("{digit}", "A")));
+    }
+
+    #[test]
+    fn can_figure_out_zero_page_opcode() {
+        let tokens = Lexer::lex_string("LDA $44").unwrap();
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::ZeroPage("44".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_figure_out_zero_page_x_opcode() {
+        let tokens = Lexer::lex_string("LDA $44,X").unwrap();
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::ZeroPageX("44".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_figure_out_absolute_address_opcode() {
+        let tokens = Lexer::lex_string("LDA $4400").unwrap();
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::Absolute("4400".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_figure_out_absolute_x_address_opcode() {
+        let tokens = Lexer::lex_string("LDA $4400,X").unwrap();
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::AbsoluteX("4400".into())],
+                   &tokens[0][..]);
     }
 }
