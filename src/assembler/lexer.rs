@@ -89,6 +89,9 @@ impl Lexer {
                 if c.is_alphanumeric() {
                     let token = Self::consume_alphanumeric(&mut idx, line)?;
                     tokens.push(token);
+                } else if c == ';' {
+                    // Skip the rest of this line
+                    break;
                 } else if c == '$' {
                     let token = Self::consume_address(&mut idx, line)?;
                     tokens.push(token);
@@ -362,6 +365,15 @@ mod tests {
     #[test]
     fn can_figure_out_absolute_y_address_opcode_when_excess_whitespace() {
         let tokens = Lexer::lex_string("LDA $4400,        Y").unwrap();
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::AbsoluteY("4400".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
+    fn does_skip_comments() {
+        let tokens = Lexer::lex_string("LDA $4400, Y ; This loads the value at $4400 + Y into \
+                                        the A register")
+            .unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::AbsoluteY("4400".into())],
                    &tokens[0][..]);
     }
