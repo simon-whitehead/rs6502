@@ -157,7 +157,7 @@ impl Lexer {
                             break;
                         }
                     } else {
-                        if c == ',' {
+                        if c == ',' || c == ')' {
                             break;
                         } else {
                             return Err(LexerError::unexpected_ident("{digit}", c));
@@ -238,9 +238,25 @@ impl Lexer {
             // Its IndirectX
             return Ok(Token::IndirectX(val.clone()));
         } else {
-            println!("{:?} - Next char: {}", addr, line[*idx] as char);
+            let c = line[*idx] as char;
+            if c == ')' {
+                // High chance its IndirectY - lets check:
+                *idx += 1;
+                let c = line[*idx] as char;
+                if c == ',' {
+                    *idx += 1; // Skip the comma
+                    Self::consume_whitespace(&mut idx, &line);
+                    let c = line[*idx] as char;
+                    if c == 'Y' {
+                        if let Token::ZeroPage(val) = addr {
+                            *idx += 1;
+                            return Ok(Token::IndirectY(val.clone()));
+                        }
+                    }
+                }
+            }
         }
-        Ok(Token::Unknown("".into()))
+        Err(LexerError::from("ERR: Error while parsing Indirect address"))
     }
 
     fn consume_whitespace(mut idx: &mut usize, line: &[u8]) {
@@ -400,6 +416,13 @@ mod tests {
     fn can_handle_indirect_addressing_x_register() {
         let tokens = Lexer::lex_string("LDA ($20,X)").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectX("20".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_handle_indirect_addressing_y_register() {
+        let tokens = Lexer::lex_string("LDA ($20),      Y").unwrap();
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectY("20".into())],
                    &tokens[0][..]);
     }
 }
