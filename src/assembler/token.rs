@@ -1,6 +1,6 @@
 use opcodes::OpCode;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum ImmediateBase {
     Base10,
     Base16,
@@ -21,4 +21,5 @@ pub enum Token {
     IndirectX(String),
     IndirectY(String),
     Directive(String),
+    Digits(String, ImmediateBase),
 }

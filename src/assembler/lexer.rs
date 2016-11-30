@@ -26,6 +26,11 @@ impl LexerError {
                              expected),
         }
     }
+    fn out_of_bounds<A>(addr: A) -> LexerError
+        where A: std::fmt::Display
+    {
+        LexerError { message: format!("ERR: Memory address '{}' too large", addr) }
+    }
 }
 
 impl From<std::io::Error> for LexerError {
@@ -100,8 +105,9 @@ impl Lexer {
                     let token = Self::consume_address(&mut idx, line)?;
                     tokens.push(token);
                 } else if c == '#' {
-                    let token = Self::consume_number(&mut idx, line)?;
-                    tokens.push(token);
+                    if let Token::Digits(number, base) = Self::consume_number(&mut idx, line)? {
+                        tokens.push(Token::Immediate(number, base));
+                    }
                 } else if c == '.' {
                     idx += 1;
                     let token = Self::consume_alphanumeric(&mut idx, line)?;
@@ -133,68 +139,76 @@ impl Lexer {
             *idx += 1;
         }
 
-        Err("ERR: An error occurred while consuming an alphanumeric identifier".into())
+        Err(format!("ERR: An error occurred while consuming an alphanumeric identifier: pos: {}",
+                    *idx)
+            .into())
     }
 
-    fn consume_number(idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
+    fn consume_number(mut idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
         let mut tok = String::new();
-        *idx += 1;
         let mut c = line[*idx] as char;
         let mut base = ImmediateBase::Base16;
 
-        // Very next character should be a dollar sign
-        if c != '$' {
-            if c.is_digit(10) {
-                base = ImmediateBase::Base10;
-                // Consume every number
-                loop {
-                    if c.is_digit(10) {
-                        tok.push(c);
-                        *idx += 1;
-                        if *idx < line.len() {
-                            c = line[*idx] as char;
-                        } else {
-                            break;
-                        }
+        if c == '$' {
+            *idx += 1;
+            Self::consume_digits(&mut idx, line, &base)
+        } else if c == '#' {
+            *idx += 1;
+            base = ImmediateBase::Base10;
+            if line[*idx] as char == '$' {
+                // Skip over the dollar sign and revert to base16
+                base = ImmediateBase::Base16;
+                *idx += 1;
+            }
+            Self::consume_digits(&mut idx, line, &base)
+        } else {
+            Err("Error consuming number".into())
+        }
+    }
+
+    fn consume_digits(mut idx: &mut usize,
+                      line: &[u8],
+                      base: &ImmediateBase)
+                      -> Result<Token, LexerError> {
+        let mut result = String::new();
+        let b = if let ImmediateBase::Base10 = *base {
+            10
+        } else {
+            16
+        };
+        let mut c = line[*idx] as char;
+        loop {
+            if c.is_digit(b) {
+                result.push(c);
+                *idx += 1;
+                if *idx < line.len() {
+                    c = line[*idx] as char;
+                } else {
+                    break;
+                }
+            } else {
+                if c == ',' || c == ')' || c.is_whitespace() {
+                    break;
+                } else {
+                    if b == 10 {
+                        return Err(LexerError::unexpected_ident("{digit}", c));
                     } else {
-                        if c == ',' || c == ')' {
-                            break;
-                        } else {
-                            return Err(LexerError::unexpected_ident("{digit}", c));
-                        }
+                        return Err(LexerError::unexpected_ident("{hex_digit}", c));
                     }
                 }
-
-                return Ok(Token::Immediate(tok.clone(), base));
-            } else {
-                return Err(LexerError::unexpected_ident("{digit}", c));
             }
         }
 
-        *idx += 1;
-        let c = line[*idx] as char;
-        if c.is_digit(16) {
-            tok.push(c as char);
-        } else {
-            return Err(LexerError::unexpected_ident("{hex_digit}", c));
-        }
-
-        *idx += 1;
-        let c = line[*idx] as char;
-        if c.is_digit(16) {
-            tok.push(c);
-            *idx += 0x02;
-            return Ok(Token::Immediate(str::from_utf8(&tok[..].as_bytes()).unwrap().into(), base));
-        } else {
-            return Err(LexerError::unexpected_ident("{hex_digit}", c));
-        }
-
-        Err("An error occurred while consuming an immediate identifier".into())
+        Ok(Token::Digits(result, base.clone()))
     }
 
     fn consume_address(mut idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
         let mut tok = String::new();
-        if let Token::Immediate(val, _) = Self::consume_number(&mut idx, &line)? {
+        if let Token::Digits(val, base) = Self::consume_number(&mut idx, &line)? {
+            // if the length is greater than 4.. its outside the memory bounds
+            if val.len() > 4 {
+                return Err(LexerError::out_of_bounds(val));
+            }
             // If the length is greater than 2.. its not a Zero Page address
             if val.len() > 2 {
                 let mut token_type = Token::Absolute(val.clone());
@@ -350,7 +364,7 @@ mod tests {
     }
 
     #[test]
-    fn immediate_values_throw_errors_when_not_even_a_hex_code() {
+    fn immediate_values_throw_errors_when_not_even_a_decimal_number() {
         assert_eq!(Lexer::lex_string("
             LDA #@hotmail.com
         "),
@@ -389,6 +403,13 @@ mod tests {
     fn can_figure_out_absolute_address_opcode() {
         let tokens = Lexer::lex_string("LDA $4400").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::Absolute("4400".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_figure_out_absolute_address_opcode_with_all_hex_digits() {
+        let tokens = Lexer::lex_string("LDA $AFFF").unwrap();
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::Absolute("AFFF".into())],
                    &tokens[0][..]);
     }
 
@@ -434,5 +455,11 @@ mod tests {
         let tokens = Lexer::lex_string("LDA ($20),      Y").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectY("20".into())],
                    &tokens[0][..]);
+    }
+
+    #[test]
+    fn out_of_bounds_memory_addresses_throw_errors() {
+        assert_eq!(Lexer::lex_string("LDA $FFFF0"),
+                   Err(LexerError::out_of_bounds("FFFF0")));
     }
 }
