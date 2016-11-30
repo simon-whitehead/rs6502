@@ -91,7 +91,9 @@ impl Lexer {
             let line = &line[..].as_bytes();
             while idx < line.len() {
                 let c = line[idx] as char;
-                if c.is_alphanumeric() {
+                if c.is_whitespace() {
+                    Self::consume_whitespace(&mut idx, line);
+                } else if c.is_alphanumeric() {
                     let token = Self::consume_alphanumeric(&mut idx, line)?;
                     tokens.push(token);
                 } else if c == ';' {
@@ -131,17 +133,14 @@ impl Lexer {
         while *idx < line.len() {
             let c = line[*idx] as char;
             if c.is_whitespace() || c == ';' || c == ':' || c == '\n' {
-                return Ok(Self::classify(&tok));
+                break;
             } else {
                 tok.push(c);
             }
 
             *idx += 1;
         }
-
-        Err(format!("ERR: An error occurred while consuming an alphanumeric identifier: pos: {}",
-                    *idx)
-            .into())
+        Ok(Self::classify(&tok))
     }
 
     fn consume_number(mut idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
@@ -461,5 +460,38 @@ mod tests {
     fn out_of_bounds_memory_addresses_throw_errors() {
         assert_eq!(Lexer::lex_string("LDA $FFFF0"),
                    Err(LexerError::out_of_bounds("FFFF0")));
+    }
+
+    #[test]
+    fn can_tokenize_clearmem_implementation() {
+        let tokens = Lexer::lex_string("
+CLRMEM  LDA #$00
+        TAY             
+CLRM1   STA ($FF),Y
+        INY            
+        DEX             
+BNE OTHERAGAIN
+        RTS 
+        ")
+            .unwrap();
+
+        assert_eq!(&[Token::Label("CLRMEM".into()),
+                     Token::OpCode("LDA".into()),
+                     Token::Immediate("00".into(), ImmediateBase::Base16)],
+                   &tokens[0][..]);
+
+        assert_eq!(&[Token::OpCode("TAY".into())], &tokens[1][..]);
+
+        assert_eq!(&[Token::Label("CLRM1".into()),
+                     Token::OpCode("STA".into()),
+                     Token::IndirectY("FF".into())],
+                   &tokens[2][..]);
+
+        assert_eq!(&[Token::OpCode("INY".into())], &tokens[3][..]);
+        assert_eq!(&[Token::OpCode("DEX".into())], &tokens[4][..]);
+        assert_eq!(&[Token::OpCode("BNE".into()), Token::Label("OTHERAGAIN".into())],
+                   &tokens[5][..]);
+
+        assert_eq!(&[Token::OpCode("RTS".into())], &tokens[6][..]);
     }
 }
