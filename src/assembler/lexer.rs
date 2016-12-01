@@ -381,6 +381,21 @@ mod tests {
     use ::assembler::token::{ImmediateBase, Token};
 
     #[test]
+    fn can_classify_clearly_wrong_stuff() {
+        let tokens = Lexer::lex_string("
+            LOL this is totally broken
+        ")
+            .unwrap();
+
+        assert_eq!(&[Token::Label("LOL".into()),
+                     Token::Label("this".into()),
+                     Token::Label("is".into()),
+                     Token::Label("totally".into()),
+                     Token::Label("broken".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
     fn can_classify_simple_labels_and_opcodes() {
         let tokens = Lexer::lex_string("
             LDA #$20 
