@@ -1,5 +1,6 @@
 // This lexer is based on the grammar I found here: https://github.com/antlr/grammars-v4/blob/master/asm6502/asm6502.g4
-// It looks like it matches the various 6502 assembly examples I have seen online.
+// It doesn't support the arithmetic operators, however. It looks like it matches the various 6502 assembly examples
+// I have seen online and so is good enough.
 
 use std;
 use std::error::Error;
@@ -23,7 +24,7 @@ impl LexerError {
               B: std::fmt::Display
     {
         LexerError {
-            message: format!("ERR: Unexpected identifier. Found '{}', expected '{}'",
+            message: format!("Unexpected identifier. Found '{}', expected '{}'",
                              found,
                              expected),
         }
@@ -31,15 +32,19 @@ impl LexerError {
     fn out_of_bounds<A>(addr: A) -> LexerError
         where A: std::fmt::Display
     {
-        LexerError { message: format!("ERR: Memory address '{}' too large", addr) }
+        LexerError::from(format!("Memory address '{}' too large", addr))
     }
 
     fn unexpected_eof() -> LexerError {
-        LexerError { message: "Unexpected EOF".into() }
+        LexerError::from("Unexpected EOF")
     }
 
     fn expected_indirect_address() -> LexerError {
-        LexerError { message: "Expected indirect addressing".into() }
+        LexerError::from("Expected indirect addressing")
+    }
+
+    fn expected_memory_address() -> LexerError {
+        LexerError::from("Expected memory address")
     }
 }
 
@@ -93,18 +98,23 @@ impl Lexer {
         let mut result = Vec::new();
 
         for line in source.lines() {
+            // Skip blank lines
             if line.trim().len() == 0 {
                 continue;
             }
+
             let mut tokens = Vec::new();
             let mut idx = 0;
             let mut iter = line.chars();
             let mut peeker = iter.peekable();
+
             loop {
+                // Break out if we've reached the end of the line
                 if let None = peeker.peek() {
                     break;
                 }
 
+                // Consume any leading whitespace voids we're sitting in
                 if peeker.peek().unwrap().is_whitespace() {
                     Self::consume_whitespace(&mut peeker);
                 } else if peeker.peek().unwrap().is_alphanumeric() {
@@ -127,6 +137,8 @@ impl Lexer {
                 } else if *peeker.peek().unwrap() == '.' {
                     peeker.next();
                     let token = Self::consume_alphanumeric(&mut peeker)?;
+                    // "Label"s immediately following a dot are a Directive
+                    // in this assembler
                     if let Token::Label(label) = token {
                         tokens.push(Token::Directive(label));
                     }
@@ -139,54 +151,59 @@ impl Lexer {
         Ok(result)
     }
 
+    /// Consumes alphanumeric characters until it reachs something that terminates it
     fn consume_alphanumeric<I>(mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
         where I: Iterator<Item = char>
     {
         let mut tok = String::new();
 
         loop {
-            {
-                if let None = peeker.peek() {
-                    break;
-                }
-                if *peeker.peek().unwrap() == ':' {
-                    peeker.next();
-                    break;
-                }
-                let c = peeker.peek().unwrap();
-                if c.is_whitespace() || *c == ';' || *c == '\n' {
-                    break;
-                } else {
-                    tok.push(*c);
-                }
+            if let None = peeker.peek() {
+                break;
             }
-            peeker.next();
-        }
+            let c = *peeker.peek().unwrap();
+            // Break on possible label endings
+            if c == ':' {
+                peeker.next();
+                break;
+            }
 
-        println!("Classifying: {}", tok);
+            let c = *peeker.peek().unwrap(); // Re-peek just in case the label ending was consumed
+            if c.is_whitespace() || c == ';' || c == '\n' {
+                break;
+            } else {
+                tok.push(c);
+                peeker.next();
+            }
+        }
 
         Ok(Self::classify(&tok))
     }
 
+    /// Decides the base of a number we are about to consume
     fn consume_number<I>(mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
         where I: Iterator<Item = char>
     {
         let mut tok = String::new();
 
+        // Default to base16
         let mut base = ImmediateBase::Base16;
 
         if let None = peeker.peek() {
             Err(LexerError::unexpected_eof())
         } else {
-            if *peeker.peek().unwrap() == '$' {
+            let c = *peeker.peek().unwrap();
+            if c == '$' {
+                // The number is base16
                 peeker.next();
                 Self::consume_digits(&mut peeker, &base)
-            } else if *peeker.peek().unwrap() == '#' {
+            } else if c == '#' {
+                // The number is base 10
+                peeker.next();
                 if let None = peeker.peek() {
                     return Err(LexerError::unexpected_eof());
                 }
 
-                peeker.next();
                 base = ImmediateBase::Base10;
                 if *peeker.peek().unwrap() == '$' {
                     // Skip over the dollar sign and revert to base16
@@ -201,6 +218,7 @@ impl Lexer {
         }
     }
 
+    /// Consumes number of a specified base until it can't anymore
     fn consume_digits<I>(peeker: &mut Peekable<I>,
                          base: &ImmediateBase)
                          -> Result<Token, LexerError>
@@ -214,22 +232,22 @@ impl Lexer {
             16
         };
         loop {
-            if let Some(c) = peeker.peek() {
-                if c.is_digit(b) {
-                    result.push(*c);
+            if let None = peeker.peek() {
+                break;
+            }
+            let c = *peeker.peek().unwrap();
+            if c.is_digit(b) {
+                result.push(c);
+            } else {
+                if c == ',' || c == ')' || c.is_whitespace() {
+                    break;
                 } else {
-                    if *c == ',' || *c == ')' || c.is_whitespace() {
-                        break;
+                    if b == 10 {
+                        return Err(LexerError::unexpected_ident("{digit}", c));
                     } else {
-                        if b == 10 {
-                            return Err(LexerError::unexpected_ident("{digit}", c));
-                        } else {
-                            return Err(LexerError::unexpected_ident("{hex_digit}", c));
-                        }
+                        return Err(LexerError::unexpected_ident("{hex_digit}", c));
                     }
                 }
-            } else {
-                break;
             }
             peeker.next();
         }
@@ -237,15 +255,19 @@ impl Lexer {
         Ok(Token::Digits(result, base.clone()))
     }
 
+    /// Consumes a memory address
     fn consume_address<I>(mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
         where I: Iterator<Item = char>
     {
         let mut tok = String::new();
+
+        // Grab the actual numbers
         if let Token::Digits(val, base) = Self::consume_number(&mut peeker)? {
             // if the length is greater than 4.. its outside the memory bounds
             if val.len() > 4 {
                 return Err(LexerError::out_of_bounds(val));
             }
+
             // If the length is greater than 2.. its not a Zero Page address
             if val.len() > 2 {
                 let mut token_type = Token::Absolute(val.clone());
@@ -270,6 +292,7 @@ impl Lexer {
 
                 Ok(token_type)
             } else {
+                // Its zero page
                 let mut token_type = Token::ZeroPage(val.clone());
                 // Check for ZeroPageX:
                 if let Some(_) = peeker.peek() {
@@ -286,10 +309,11 @@ impl Lexer {
                 Ok(token_type)
             }
         } else {
-            Err(LexerError::from("Error consuming address"))
+            Err(LexerError::expected_memory_address())
         }
     }
 
+    /// Consumes an indirect memory addressing instruction
     fn consume_indirect<I>(mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
         where I: Iterator<Item = char>
     {
@@ -299,7 +323,6 @@ impl Lexer {
 
         if let Token::ZeroPageX(val) = addr {
             // Its IndirectX
-            println!("IndirectX");
             return Ok(Token::IndirectX(val.clone()));
         } else {
             if *peeker.peek().unwrap() == ')' {
@@ -319,9 +342,11 @@ impl Lexer {
                 }
             }
         }
-        Err(LexerError::from("ERR: Error while parsing Indirect address"))
+        Err(LexerError::expected_indirect_address())
     }
 
+    /// Consumes whitespace characters until it encounters a
+    /// non-whitespace character
     fn consume_whitespace<I>(peeker: &mut Peekable<I>)
         where I: Iterator<Item = char>
     {
@@ -338,6 +363,8 @@ impl Lexer {
         }
     }
 
+    /// Classifies an alphanumeric token into either an op code
+    /// or a label
     fn classify(input: &str) -> Token {
         let mut tok = String::from(input);
         if let Some(opcode) = OpCode::from_mnemonic(tok.clone()) {
