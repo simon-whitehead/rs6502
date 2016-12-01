@@ -5,7 +5,9 @@ use std;
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, Read};
+use std::iter::Peekable;
 use std::str;
+use std::str::Chars;
 
 use assembler::token::{ImmediateBase, Token};
 use ::opcodes::OpCode;
@@ -30,6 +32,14 @@ impl LexerError {
         where A: std::fmt::Display
     {
         LexerError { message: format!("ERR: Memory address '{}' too large", addr) }
+    }
+
+    fn unexpected_eof() -> LexerError {
+        LexerError { message: "Unexpected EOF".into() }
+    }
+
+    fn expected_indirect_address() -> LexerError {
+        LexerError { message: "Expected indirect addressing".into() }
     }
 }
 
@@ -88,36 +98,38 @@ impl Lexer {
             }
             let mut tokens = Vec::new();
             let mut idx = 0;
-            let line = &line[..].as_bytes();
-            while idx < line.len() {
-                let c = line[idx] as char;
-                if c.is_whitespace() {
-                    Self::consume_whitespace(&mut idx, line);
-                } else if c.is_alphanumeric() {
-                    let token = Self::consume_alphanumeric(&mut idx, line)?;
+            let mut iter = line.chars();
+            let mut peeker = iter.peekable();
+            loop {
+                if let None = peeker.peek() {
+                    break;
+                }
+
+                if peeker.peek().unwrap().is_whitespace() {
+                    Self::consume_whitespace(&mut peeker);
+                } else if peeker.peek().unwrap().is_alphanumeric() {
+                    let token = Self::consume_alphanumeric(&mut peeker)?;
                     tokens.push(token);
-                } else if c == ';' {
+                } else if *peeker.peek().unwrap() == ';' {
                     // Skip the rest of this line
                     break;
-                } else if c == '(' {
+                } else if *peeker.peek().unwrap() == '(' {
                     // Indirect addressing
-                    let token = Self::consume_indirect(&mut idx, line)?;
+                    let token = Self::consume_indirect(&mut peeker)?;
                     tokens.push(token);
-                } else if c == '$' {
-                    let token = Self::consume_address(&mut idx, line)?;
+                } else if *peeker.peek().unwrap() == '$' {
+                    let token = Self::consume_address(&mut peeker)?;
                     tokens.push(token);
-                } else if c == '#' {
-                    if let Token::Digits(number, base) = Self::consume_number(&mut idx, line)? {
+                } else if *peeker.peek().unwrap() == '#' {
+                    if let Token::Digits(number, base) = Self::consume_number(&mut peeker)? {
                         tokens.push(Token::Immediate(number, base));
                     }
-                } else if c == '.' {
-                    idx += 1;
-                    let token = Self::consume_alphanumeric(&mut idx, line)?;
+                } else if *peeker.peek().unwrap() == '.' {
+                    peeker.next();
+                    let token = Self::consume_alphanumeric(&mut peeker)?;
                     if let Token::Label(label) = token {
                         tokens.push(Token::Directive(label));
                     }
-                } else {
-                    idx += 1;
                 }
             }
 
@@ -127,83 +139,109 @@ impl Lexer {
         Ok(result)
     }
 
-    fn consume_alphanumeric(idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
+    fn consume_alphanumeric<I>(mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
+        where I: Iterator<Item = char>
+    {
         let mut tok = String::new();
 
-        while *idx < line.len() {
-            let c = line[*idx] as char;
-            if c.is_whitespace() || c == ';' || c == ':' || c == '\n' {
-                break;
-            } else {
-                tok.push(c);
+        loop {
+            {
+                if let None = peeker.peek() {
+                    break;
+                }
+                if *peeker.peek().unwrap() == ':' {
+                    peeker.next();
+                    break;
+                }
+                let c = peeker.peek().unwrap();
+                if c.is_whitespace() || *c == ';' || *c == '\n' {
+                    break;
+                } else {
+                    tok.push(*c);
+                }
             }
-
-            *idx += 1;
+            peeker.next();
         }
+
+        println!("Classifying: {}", tok);
+
         Ok(Self::classify(&tok))
     }
 
-    fn consume_number(mut idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
+    fn consume_number<I>(mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
+        where I: Iterator<Item = char>
+    {
         let mut tok = String::new();
-        let mut c = line[*idx] as char;
+
         let mut base = ImmediateBase::Base16;
 
-        if c == '$' {
-            *idx += 1;
-            Self::consume_digits(&mut idx, line, &base)
-        } else if c == '#' {
-            *idx += 1;
-            base = ImmediateBase::Base10;
-            if line[*idx] as char == '$' {
-                // Skip over the dollar sign and revert to base16
-                base = ImmediateBase::Base16;
-                *idx += 1;
-            }
-            Self::consume_digits(&mut idx, line, &base)
+        if let None = peeker.peek() {
+            Err(LexerError::unexpected_eof())
         } else {
-            Err("Error consuming number".into())
+            if *peeker.peek().unwrap() == '$' {
+                peeker.next();
+                Self::consume_digits(&mut peeker, &base)
+            } else if *peeker.peek().unwrap() == '#' {
+                if let None = peeker.peek() {
+                    return Err(LexerError::unexpected_eof());
+                }
+
+                peeker.next();
+                base = ImmediateBase::Base10;
+                if *peeker.peek().unwrap() == '$' {
+                    // Skip over the dollar sign and revert to base16
+                    base = ImmediateBase::Base16;
+                    peeker.next();
+                }
+
+                Self::consume_digits(&mut peeker, &base)
+            } else {
+                Err("Error consuming number".into())
+            }
         }
     }
 
-    fn consume_digits(mut idx: &mut usize,
-                      line: &[u8],
-                      base: &ImmediateBase)
-                      -> Result<Token, LexerError> {
+    fn consume_digits<I>(peeker: &mut Peekable<I>,
+                         base: &ImmediateBase)
+                         -> Result<Token, LexerError>
+        where I: Iterator<Item = char>
+    {
         let mut result = String::new();
+
         let b = if let ImmediateBase::Base10 = *base {
             10
         } else {
             16
         };
-        let mut c = line[*idx] as char;
         loop {
-            if c.is_digit(b) {
-                result.push(c);
-                *idx += 1;
-                if *idx < line.len() {
-                    c = line[*idx] as char;
+            if let Some(c) = peeker.peek() {
+                if c.is_digit(b) {
+                    result.push(*c);
                 } else {
-                    break;
-                }
-            } else {
-                if c == ',' || c == ')' || c.is_whitespace() {
-                    break;
-                } else {
-                    if b == 10 {
-                        return Err(LexerError::unexpected_ident("{digit}", c));
+                    if *c == ',' || *c == ')' || c.is_whitespace() {
+                        break;
                     } else {
-                        return Err(LexerError::unexpected_ident("{hex_digit}", c));
+                        if b == 10 {
+                            return Err(LexerError::unexpected_ident("{digit}", c));
+                        } else {
+                            return Err(LexerError::unexpected_ident("{hex_digit}", c));
+                        }
                     }
                 }
+            } else {
+                break;
             }
+            peeker.next();
         }
 
         Ok(Token::Digits(result, base.clone()))
     }
 
-    fn consume_address(mut idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
+    fn consume_address<I>(mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
+        where I: Iterator<Item = char>
+    {
         let mut tok = String::new();
-        if let Token::Digits(val, base) = Self::consume_number(&mut idx, &line)? {
+        if let Token::Digits(val, base) = Self::consume_number(&mut peeker)? {
             // if the length is greater than 4.. its outside the memory bounds
             if val.len() > 4 {
                 return Err(LexerError::out_of_bounds(val));
@@ -212,27 +250,37 @@ impl Lexer {
             if val.len() > 2 {
                 let mut token_type = Token::Absolute(val.clone());
                 // Check for AbsoluteX
-                if *idx + 0x01 < line.len() && line[*idx] as char == ',' {
-                    *idx += 1;  // Jump over the comma
-                    Self::consume_whitespace(&mut idx, line);
-                    let c = line[*idx] as char;
-                    if c == 'X' {
-                        token_type = Token::AbsoluteX(val.clone());
-                    } else if c == 'Y' {
-                        token_type = Token::AbsoluteY(val.clone());
+                if let Some(_) = peeker.peek() {
+                    if *peeker.peek().unwrap() == ',' {
+                        peeker.next();  // Jump over the comma
+                        Self::consume_whitespace(&mut peeker);
+                        if let None = peeker.peek() {
+                            return Err(LexerError::unexpected_eof());
+                        }
+
+                        if *peeker.peek().unwrap() == 'X' {
+                            peeker.next();
+                            token_type = Token::AbsoluteX(val.clone());
+                        } else if *peeker.peek().unwrap() == 'Y' {
+                            peeker.next();
+                            token_type = Token::AbsoluteY(val.clone());
+                        }
                     }
-                    *idx += 0x02;
                 }
 
                 Ok(token_type)
             } else {
                 let mut token_type = Token::ZeroPage(val.clone());
-
                 // Check for ZeroPageX:
-                if *idx + 0x01 < line.len() && line[*idx] as char == ',' &&
-                   line[*idx + 0x01] as char == 'X' {
-                    token_type = Token::ZeroPageX(val.clone());
-                    *idx += 0x02;
+                if let Some(_) = peeker.peek() {
+                    if *peeker.peek().unwrap() == ',' {
+                        peeker.next();
+                        if *peeker.peek().unwrap() == 'X' {
+                            token_type = Token::ZeroPageX(val.clone());
+                            peeker.next();
+                            peeker.next();
+                        }
+                    }
                 }
 
                 Ok(token_type)
@@ -242,46 +290,50 @@ impl Lexer {
         }
     }
 
-    fn consume_indirect(mut idx: &mut usize, line: &[u8]) -> Result<Token, LexerError> {
+    fn consume_indirect<I>(mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
+        where I: Iterator<Item = char>
+    {
         let mut tok = String::new();
-        *idx += 1; // jump the opening parenthesis
-        let addr = Self::consume_address(&mut idx, &line)?;
+        peeker.next(); // Jump the opening parenthesis
+        let addr = Self::consume_address(&mut peeker)?;
 
         if let Token::ZeroPageX(val) = addr {
             // Its IndirectX
+            println!("IndirectX");
             return Ok(Token::IndirectX(val.clone()));
         } else {
-            let c = line[*idx] as char;
-            if c == ')' {
+            if *peeker.peek().unwrap() == ')' {
                 // High chance its IndirectY - lets check:
-                *idx += 1;
-                let c = line[*idx] as char;
-                if c == ',' {
-                    *idx += 1; // Skip the comma
-                    Self::consume_whitespace(&mut idx, &line);
-                    let c = line[*idx] as char;
-                    if c == 'Y' {
+                peeker.next();
+                if *peeker.peek().unwrap() == ',' {
+                    peeker.next(); // Skip the comma
+                    Self::consume_whitespace(&mut peeker);
+                    if *peeker.peek().unwrap() == 'Y' {
                         if let Token::ZeroPage(val) = addr {
-                            *idx += 1;
+                            peeker.next();
                             return Ok(Token::IndirectY(val.clone()));
                         }
                     }
+                } else {
+                    return Err(LexerError::expected_indirect_address());
                 }
             }
         }
         Err(LexerError::from("ERR: Error while parsing Indirect address"))
     }
 
-    fn consume_whitespace(mut idx: &mut usize, line: &[u8]) {
+    fn consume_whitespace<I>(peeker: &mut Peekable<I>)
+        where I: Iterator<Item = char>
+    {
         loop {
-            if *idx < line.len() {
-                if (line[*idx] as char).is_whitespace() {
-                    *idx += 1;
-                } else {
-                    break;
-                }
-            } else {
+            if let None = peeker.peek() {
                 break;
+            } else {
+                if !peeker.peek().unwrap().is_whitespace() {
+                    break;
+                } else {
+                    peeker.next();
+                }
             }
         }
     }
