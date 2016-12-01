@@ -619,9 +619,9 @@ CLRM1   STA ($FF),Y
         \
                          INY            
         DEX             
-BNE OTHERAGAIN
+BNE CLRM1
         RTS 
-        \
+                         \
                          ")
             .unwrap();
 
@@ -639,7 +639,7 @@ BNE OTHERAGAIN
 
         assert_eq!(&[Token::OpCode("INY".into())], &tokens[3][..]);
         assert_eq!(&[Token::OpCode("DEX".into())], &tokens[4][..]);
-        assert_eq!(&[Token::OpCode("BNE".into()), Token::Label("OTHERAGAIN".into())],
+        assert_eq!(&[Token::OpCode("BNE".into()), Token::Label("CLRM1".into())],
                    &tokens[5][..]);
 
         assert_eq!(&[Token::OpCode("RTS".into())], &tokens[6][..]);
