@@ -618,7 +618,7 @@ CLRMEM  LDA #$00        ; Load 0 into the Accumulator
 CLRM1   STA ($FF),Y     ; Store the value of A (0) into $FF+Y 
         INY             ; Increment Y
         DEX             ; Decrement X
-BNE CLRM1               ; Jump back if X != 0
+        BNE CLRM1       ; Jump back if X != 0
         RTS             ; Return from the subroutine
                          ")
             .unwrap();
