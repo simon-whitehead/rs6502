@@ -9,7 +9,6 @@ pub enum ImmediateBase {
 #[derive(Eq, PartialEq, Debug)]
 pub enum Token {
     Unknown(String),
-    Comment(String),
     Label(String),
     OpCode(String),
     Immediate(String, ImmediateBase),
@@ -22,4 +21,5 @@ pub enum Token {
     IndirectY(String),
     Directive(String),
     Digits(String, ImmediateBase),
+    Assignment,
 }

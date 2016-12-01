@@ -164,6 +164,9 @@ impl Lexer {
                     if let Token::Label(label) = token {
                         tokens.push(Token::Directive(label));
                     }
+                } else if *peeker.peek().unwrap() == '=' {
+                    self.advance(&mut peeker);
+                    tokens.push(Token::Assignment);
                 }
             }
 
@@ -640,5 +643,24 @@ BNE OTHERAGAIN
                    &tokens[5][..]);
 
         assert_eq!(&[Token::OpCode("RTS".into())], &tokens[6][..]);
+    }
+
+    #[test]
+    fn can_accept_assignments() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
+            SQUARE_X = $100
+            SQUARE_Y = $101
+        ")
+            .unwrap();
+
+        assert_eq!(&[Token::Label("SQUARE_X".into()),
+                     Token::Assignment,
+                     Token::Absolute("100".into())],
+                   &tokens[0][..]);
+        assert_eq!(&[Token::Label("SQUARE_Y".into()),
+                     Token::Assignment,
+                     Token::Absolute("101".into())],
+                   &tokens[1][..]);
     }
 }
