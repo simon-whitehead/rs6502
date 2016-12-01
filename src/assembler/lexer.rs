@@ -19,32 +19,37 @@ pub struct LexerError {
 }
 
 impl LexerError {
-    fn unexpected_ident<A, B>(expected: A, found: B) -> LexerError
+    fn unexpected_ident<A, B>(expected: A, found: B, line: u32, column: u32) -> LexerError
         where A: std::fmt::Display,
               B: std::fmt::Display
     {
         LexerError {
-            message: format!("Unexpected identifier. Found '{}', expected '{}'",
+            message: format!("Unexpected identifier. Found '{}', expected '{}'. Line {}, col {}",
                              found,
-                             expected),
+                             expected,
+                             line,
+                             column),
         }
     }
-    fn out_of_bounds<A>(addr: A) -> LexerError
+    fn out_of_bounds<A>(addr: A, line: u32, column: u32) -> LexerError
         where A: std::fmt::Display
     {
-        LexerError::from(format!("Memory address '{}' too large", addr))
+        LexerError::from(format!("Memory address '{}' too large. Line {}, col {}",
+                                 addr,
+                                 line,
+                                 column))
     }
 
     fn unexpected_eof() -> LexerError {
         LexerError::from("Unexpected EOF")
     }
 
-    fn expected_indirect_address() -> LexerError {
-        LexerError::from("Expected indirect addressing")
+    fn expected_indirect_address(line: u32, column: u32) -> LexerError {
+        LexerError::from(format!("Expected indirect addressing. Line {} col {}", line, column))
     }
 
-    fn expected_memory_address() -> LexerError {
-        LexerError::from("Expected memory address")
+    fn expected_memory_address(line: u32, column: u32) -> LexerError {
+        LexerError::from(format!("Expected memory address. Line {} col {}", line, column))
     }
 }
 
@@ -68,20 +73,27 @@ impl<'a> From<&'a str> for LexerError {
 
 /// Lexer accepts the program code as a string
 /// and converts it to a list of Tokens
-pub struct Lexer;
+pub struct Lexer {
+    line: u32,
+    col: u32,
+}
 
 impl Lexer {
+    pub fn new() -> Lexer {
+        Lexer { line: 0, col: 0 }
+    }
+
     /// Returns a vector of Tokens given an input of
     /// 6502 assembly code
-    pub fn lex_string<S>(input: S) -> Result<Vec<Vec<Token>>, LexerError>
+    pub fn lex_string<S>(&mut self, input: S) -> Result<Vec<Vec<Token>>, LexerError>
         where S: Into<String>
     {
-        Ok(Self::lex(input.into())?)
+        Ok(self.lex(input.into())?)
     }
 
     /// Returns a vector of Tokens given a file
     /// to load 6502 assembly code from
-    pub fn lex_file<P>(path: P) -> Result<Vec<Vec<Token>>, LexerError>
+    pub fn lex_file<P>(&mut self, path: P) -> Result<Vec<Vec<Token>>, LexerError>
         where P: AsRef<std::path::Path>
     {
         let mut file = File::open(&path)?;
@@ -89,22 +101,32 @@ impl Lexer {
 
         file.read_to_string(&mut contents)?;
 
-        Ok(Self::lex(contents)?)
+        Ok(self.lex(contents)?)
+    }
+
+    fn advance<I>(&mut self, mut peeker: &mut Peekable<I>)
+        where I: Iterator<Item = char>
+    {
+        peeker.next();
+        self.col += 1;
     }
 
     /// Performs the bulk of the lexing logic
-    fn lex(source: String) -> Result<Vec<Vec<Token>>, LexerError> {
+    fn lex(&mut self, source: String) -> Result<Vec<Vec<Token>>, LexerError> {
 
         let mut result = Vec::new();
+        let mut column_number = 0;
 
         for line in source.lines() {
+            self.line += 1;
+            self.col = 0;
+
             // Skip blank lines
             if line.trim().len() == 0 {
                 continue;
             }
 
             let mut tokens = Vec::new();
-            let mut idx = 0;
             let mut iter = line.chars();
             let mut peeker = iter.peekable();
 
@@ -116,27 +138,27 @@ impl Lexer {
 
                 // Consume any leading whitespace voids we're sitting in
                 if peeker.peek().unwrap().is_whitespace() {
-                    Self::consume_whitespace(&mut peeker);
+                    self.consume_whitespace(&mut peeker);
                 } else if peeker.peek().unwrap().is_alphanumeric() {
-                    let token = Self::consume_alphanumeric(&mut peeker)?;
+                    let token = self.consume_alphanumeric(&mut peeker)?;
                     tokens.push(token);
                 } else if *peeker.peek().unwrap() == ';' {
                     // Skip the rest of this line
                     break;
                 } else if *peeker.peek().unwrap() == '(' {
                     // Indirect addressing
-                    let token = Self::consume_indirect(&mut peeker)?;
+                    let token = self.consume_indirect(&mut peeker)?;
                     tokens.push(token);
                 } else if *peeker.peek().unwrap() == '$' {
-                    let token = Self::consume_address(&mut peeker)?;
+                    let token = self.consume_address(&mut peeker)?;
                     tokens.push(token);
                 } else if *peeker.peek().unwrap() == '#' {
-                    if let Token::Digits(number, base) = Self::consume_number(&mut peeker)? {
+                    if let Token::Digits(number, base) = self.consume_number(&mut peeker)? {
                         tokens.push(Token::Immediate(number, base));
                     }
                 } else if *peeker.peek().unwrap() == '.' {
-                    peeker.next();
-                    let token = Self::consume_alphanumeric(&mut peeker)?;
+                    self.advance(&mut peeker);
+                    let token = self.consume_alphanumeric(&mut peeker)?;
                     // "Label"s immediately following a dot are a Directive
                     // in this assembler
                     if let Token::Label(label) = token {
@@ -152,7 +174,7 @@ impl Lexer {
     }
 
     /// Consumes alphanumeric characters until it reachs something that terminates it
-    fn consume_alphanumeric<I>(mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
+    fn consume_alphanumeric<I>(&mut self, mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
         where I: Iterator<Item = char>
     {
         let mut tok = String::new();
@@ -164,7 +186,7 @@ impl Lexer {
             let c = *peeker.peek().unwrap();
             // Break on possible label endings
             if c == ':' {
-                peeker.next();
+                self.advance(&mut peeker);
                 break;
             }
 
@@ -173,15 +195,15 @@ impl Lexer {
                 break;
             } else {
                 tok.push(c);
-                peeker.next();
+                self.advance(&mut peeker);
             }
         }
 
-        Ok(Self::classify(&tok))
+        Ok(self.classify(&tok))
     }
 
     /// Decides the base of a number we are about to consume
-    fn consume_number<I>(mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
+    fn consume_number<I>(&mut self, mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
         where I: Iterator<Item = char>
     {
         let mut tok = String::new();
@@ -195,11 +217,11 @@ impl Lexer {
             let c = *peeker.peek().unwrap();
             if c == '$' {
                 // The number is base16
-                peeker.next();
-                Self::consume_digits(&mut peeker, &base)
+                self.advance(&mut peeker);
+                self.consume_digits(&mut peeker, &base)
             } else if c == '#' {
                 // The number is base 10
-                peeker.next();
+                self.advance(&mut peeker);
                 if let None = peeker.peek() {
                     return Err(LexerError::unexpected_eof());
                 }
@@ -208,10 +230,10 @@ impl Lexer {
                 if *peeker.peek().unwrap() == '$' {
                     // Skip over the dollar sign and revert to base16
                     base = ImmediateBase::Base16;
-                    peeker.next();
+                    self.advance(&mut peeker);
                 }
 
-                Self::consume_digits(&mut peeker, &base)
+                self.consume_digits(&mut peeker, &base)
             } else {
                 Err("Error consuming number".into())
             }
@@ -219,7 +241,8 @@ impl Lexer {
     }
 
     /// Consumes number of a specified base until it can't anymore
-    fn consume_digits<I>(peeker: &mut Peekable<I>,
+    fn consume_digits<I>(&mut self,
+                         mut peeker: &mut Peekable<I>,
                          base: &ImmediateBase)
                          -> Result<Token, LexerError>
         where I: Iterator<Item = char>
@@ -243,29 +266,35 @@ impl Lexer {
                     break;
                 } else {
                     if b == 10 {
-                        return Err(LexerError::unexpected_ident("{digit}", c));
+                        return Err(LexerError::unexpected_ident("{digit}",
+                                                                c,
+                                                                self.line,
+                                                                self.col + 0x01));
                     } else {
-                        return Err(LexerError::unexpected_ident("{hex_digit}", c));
+                        return Err(LexerError::unexpected_ident("{hex_digit}",
+                                                                c,
+                                                                self.line,
+                                                                self.col + 0x01));
                     }
                 }
             }
-            peeker.next();
+            self.advance(&mut peeker);
         }
 
         Ok(Token::Digits(result, base.clone()))
     }
 
     /// Consumes a memory address
-    fn consume_address<I>(mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
+    fn consume_address<I>(&mut self, mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
         where I: Iterator<Item = char>
     {
         let mut tok = String::new();
 
         // Grab the actual numbers
-        if let Token::Digits(val, base) = Self::consume_number(&mut peeker)? {
+        if let Token::Digits(val, base) = self.consume_number(&mut peeker)? {
             // if the length is greater than 4.. its outside the memory bounds
             if val.len() > 4 {
-                return Err(LexerError::out_of_bounds(val));
+                return Err(LexerError::out_of_bounds(&val, self.line, self.col - val.len() as u32));
             }
 
             // If the length is greater than 2.. its not a Zero Page address
@@ -274,17 +303,17 @@ impl Lexer {
                 // Check for AbsoluteX
                 if let Some(_) = peeker.peek() {
                     if *peeker.peek().unwrap() == ',' {
-                        peeker.next();  // Jump over the comma
-                        Self::consume_whitespace(&mut peeker);
+                        self.advance(&mut peeker);  // Jump over the comma
+                        self.consume_whitespace(&mut peeker);
                         if let None = peeker.peek() {
                             return Err(LexerError::unexpected_eof());
                         }
 
                         if *peeker.peek().unwrap() == 'X' {
-                            peeker.next();
+                            self.advance(&mut peeker);
                             token_type = Token::AbsoluteX(val.clone());
                         } else if *peeker.peek().unwrap() == 'Y' {
-                            peeker.next();
+                            self.advance(&mut peeker);
                             token_type = Token::AbsoluteY(val.clone());
                         }
                     }
@@ -297,11 +326,11 @@ impl Lexer {
                 // Check for ZeroPageX:
                 if let Some(_) = peeker.peek() {
                     if *peeker.peek().unwrap() == ',' {
-                        peeker.next();
+                        self.advance(&mut peeker);
                         if *peeker.peek().unwrap() == 'X' {
                             token_type = Token::ZeroPageX(val.clone());
-                            peeker.next();
-                            peeker.next();
+                            self.advance(&mut peeker);
+                            self.advance(&mut peeker);
                         }
                     }
                 }
@@ -309,17 +338,17 @@ impl Lexer {
                 Ok(token_type)
             }
         } else {
-            Err(LexerError::expected_memory_address())
+            Err(LexerError::expected_memory_address(self.line, self.col))
         }
     }
 
     /// Consumes an indirect memory addressing instruction
-    fn consume_indirect<I>(mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
+    fn consume_indirect<I>(&mut self, mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
         where I: Iterator<Item = char>
     {
         let mut tok = String::new();
-        peeker.next(); // Jump the opening parenthesis
-        let addr = Self::consume_address(&mut peeker)?;
+        self.advance(&mut peeker);; // Jump the opening parenthesis
+        let addr = self.consume_address(&mut peeker)?;
 
         if let Token::ZeroPageX(val) = addr {
             // Its IndirectX
@@ -327,27 +356,27 @@ impl Lexer {
         } else {
             if *peeker.peek().unwrap() == ')' {
                 // High chance its IndirectY - lets check:
-                peeker.next();
+                self.advance(&mut peeker);
                 if *peeker.peek().unwrap() == ',' {
-                    peeker.next(); // Skip the comma
-                    Self::consume_whitespace(&mut peeker);
+                    self.advance(&mut peeker); // Skip the comma
+                    self.consume_whitespace(&mut peeker);
                     if *peeker.peek().unwrap() == 'Y' {
                         if let Token::ZeroPage(val) = addr {
-                            peeker.next();
+                            self.advance(&mut peeker);
                             return Ok(Token::IndirectY(val.clone()));
                         }
                     }
                 } else {
-                    return Err(LexerError::expected_indirect_address());
+                    return Err(LexerError::expected_indirect_address(self.line, self.col));
                 }
             }
         }
-        Err(LexerError::expected_indirect_address())
+        Err(LexerError::expected_indirect_address(self.line, self.col))
     }
 
     /// Consumes whitespace characters until it encounters a
     /// non-whitespace character
-    fn consume_whitespace<I>(peeker: &mut Peekable<I>)
+    fn consume_whitespace<I>(&mut self, mut peeker: &mut Peekable<I>)
         where I: Iterator<Item = char>
     {
         loop {
@@ -357,7 +386,7 @@ impl Lexer {
                 if !peeker.peek().unwrap().is_whitespace() {
                     break;
                 } else {
-                    peeker.next();
+                    self.advance(&mut peeker);
                 }
             }
         }
@@ -365,7 +394,7 @@ impl Lexer {
 
     /// Classifies an alphanumeric token into either an op code
     /// or a label
-    fn classify(input: &str) -> Token {
+    fn classify(&mut self, input: &str) -> Token {
         let mut tok = String::from(input);
         if let Some(opcode) = OpCode::from_mnemonic(tok.clone()) {
             Token::OpCode(tok.clone())
@@ -382,7 +411,8 @@ mod tests {
 
     #[test]
     fn can_classify_clearly_wrong_stuff() {
-        let tokens = Lexer::lex_string("
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
             LOL this is totally broken
         ")
             .unwrap();
@@ -397,7 +427,8 @@ mod tests {
 
     #[test]
     fn can_classify_simple_labels_and_opcodes() {
-        let tokens = Lexer::lex_string("
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
             LDA #$20 
         ")
             .unwrap();
@@ -409,7 +440,8 @@ mod tests {
 
     #[test]
     fn does_not_classify_unknown_labels_and_opcodes() {
-        let tokens = Lexer::lex_string("
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
             .LOL LDA #$20 
         ")
             .unwrap();
@@ -422,7 +454,8 @@ mod tests {
 
     #[test]
     fn can_classify_labels() {
-        let tokens = Lexer::lex_string("MAIN: LDA #$20").unwrap();
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("MAIN: LDA #$20").unwrap();
 
         assert_eq!(&[Token::Label("MAIN".into()),
                      Token::OpCode("LDA".into()),
@@ -432,7 +465,8 @@ mod tests {
 
     #[test]
     fn can_classify_labels_with_no_colon() {
-        let tokens = Lexer::lex_string("MAIN LDA #$20").unwrap();
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("MAIN LDA #$20").unwrap();
 
         assert_eq!(&[Token::Label("MAIN".into()),
                      Token::OpCode("LDA".into()),
@@ -442,31 +476,35 @@ mod tests {
 
     #[test]
     fn immediate_values_throw_errors_when_invalid() {
-        assert_eq!(Lexer::lex_string("
+        let mut lexer = Lexer::new();
+        assert_eq!(lexer.lex_string("
             LDA #$INVALID20
         "),
-                   Err(LexerError::unexpected_ident("{hex_digit}", "I")));
+                   Err(LexerError::unexpected_ident("{hex_digit}", "I", 2, 19)));
     }
 
     #[test]
     fn immediate_values_throw_errors_when_invalid_hex_code() {
-        assert_eq!(Lexer::lex_string("
+        let mut lexer = Lexer::new();
+        assert_eq!(lexer.lex_string("
             LDA #$2Z
         "),
-                   Err(LexerError::unexpected_ident("{hex_digit}", "Z")));
+                   Err(LexerError::unexpected_ident("{hex_digit}", "Z", 2, 20)));
     }
 
     #[test]
     fn immediate_values_throw_errors_when_not_even_a_decimal_number() {
-        assert_eq!(Lexer::lex_string("
+        let mut lexer = Lexer::new();
+        assert_eq!(lexer.lex_string("
             LDA #@hotmail.com
         "),
-                   Err(LexerError::unexpected_ident("{digit}", "@")));
+                   Err(LexerError::unexpected_ident("{digit}", "@", 2, 18)));
     }
 
     #[test]
     fn immediate_values_accept_base_ten() {
-        let tokens = Lexer::lex_string("LDA #10").unwrap();
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("LDA #10").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()),
                      Token::Immediate("10".into(), ImmediateBase::Base10)],
                    &tokens[0][..]);
@@ -474,99 +512,114 @@ mod tests {
 
     #[test]
     fn immediate_values_base_ten_does_not_accept_hex() {
-        assert_eq!(Lexer::lex_string("LDA #1A"),
-                   Err(LexerError::unexpected_ident("{digit}", "A")));
+        let mut lexer = Lexer::new();
+        assert_eq!(lexer.lex_string("LDA #1A"),
+                   Err(LexerError::unexpected_ident("{digit}", "A", 1, 7)));
     }
 
     #[test]
     fn can_figure_out_zero_page_opcode() {
-        let tokens = Lexer::lex_string("LDA $44").unwrap();
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("LDA $44").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::ZeroPage("44".into())],
                    &tokens[0][..]);
     }
 
     #[test]
     fn can_figure_out_zero_page_x_opcode() {
-        let tokens = Lexer::lex_string("LDA $44,X").unwrap();
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("LDA $44,X").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::ZeroPageX("44".into())],
                    &tokens[0][..]);
     }
 
     #[test]
     fn can_figure_out_absolute_address_opcode() {
-        let tokens = Lexer::lex_string("LDA $4400").unwrap();
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("LDA $4400").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::Absolute("4400".into())],
                    &tokens[0][..]);
     }
 
     #[test]
     fn can_figure_out_absolute_address_opcode_with_all_hex_digits() {
-        let tokens = Lexer::lex_string("LDA $AFFF").unwrap();
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("LDA $AFFF").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::Absolute("AFFF".into())],
                    &tokens[0][..]);
     }
 
     #[test]
     fn can_figure_out_absolute_x_address_opcode() {
-        let tokens = Lexer::lex_string("LDA $4400,X").unwrap();
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("LDA $4400,X").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::AbsoluteX("4400".into())],
                    &tokens[0][..]);
     }
 
     #[test]
     fn can_figure_out_absolute_y_address_opcode() {
-        let tokens = Lexer::lex_string("LDA $4400,Y").unwrap();
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("LDA $4400,Y").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::AbsoluteY("4400".into())],
                    &tokens[0][..]);
     }
 
     #[test]
     fn can_figure_out_absolute_y_address_opcode_when_excess_whitespace() {
-        let tokens = Lexer::lex_string("LDA $4400,        Y").unwrap();
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("LDA $4400,        Y").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::AbsoluteY("4400".into())],
                    &tokens[0][..]);
     }
 
     #[test]
     fn does_skip_comments() {
-        let tokens = Lexer::lex_string("LDA $4400, Y ; This loads the value at $4400 + Y into \
-                                        the A register")
-            .unwrap();
+        let mut lexer = Lexer::new();
+        let tokens =
+            lexer.lex_string("LDA $4400, Y ; This loads the value at $4400 + Y into the A register")
+                .unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::AbsoluteY("4400".into())],
                    &tokens[0][..]);
     }
 
     #[test]
     fn can_handle_indirect_addressing_x_register() {
-        let tokens = Lexer::lex_string("LDA ($20,X)").unwrap();
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("LDA ($20,X)").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectX("20".into())],
                    &tokens[0][..]);
     }
 
     #[test]
     fn can_handle_indirect_addressing_y_register() {
-        let tokens = Lexer::lex_string("LDA ($20),      Y").unwrap();
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("LDA ($20),      Y").unwrap();
         assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectY("20".into())],
                    &tokens[0][..]);
     }
 
     #[test]
     fn out_of_bounds_memory_addresses_throw_errors() {
-        assert_eq!(Lexer::lex_string("LDA $FFFF0"),
-                   Err(LexerError::out_of_bounds("FFFF0")));
+        let mut lexer = Lexer::new();
+        assert_eq!(lexer.lex_string("LDA $FFFF0"),
+                   Err(LexerError::out_of_bounds("FFFF0", 1, 5)));
     }
 
     #[test]
     fn can_tokenize_clearmem_implementation() {
-        let tokens = Lexer::lex_string("
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
 CLRMEM  LDA #$00
         TAY             
 CLRM1   STA ($FF),Y
-        INY            
+        \
+                         INY            
         DEX             
 BNE OTHERAGAIN
         RTS 
-        ")
+        \
+                         ")
             .unwrap();
 
         assert_eq!(&[Token::Label("CLRMEM".into()),
