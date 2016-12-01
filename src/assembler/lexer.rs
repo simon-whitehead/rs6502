@@ -613,15 +613,13 @@ mod tests {
     fn can_tokenize_clearmem_implementation() {
         let mut lexer = Lexer::new();
         let tokens = lexer.lex_string("
-CLRMEM  LDA #$00
-        TAY             
-CLRM1   STA ($FF),Y
-        \
-                         INY            
-        DEX             
-BNE CLRM1
-        RTS 
-                         \
+CLRMEM  LDA #$00        ; Load 0 into the Accumulator
+        TAY             ; Transfer A -> Y (load 0 into Y as well)
+CLRM1   STA ($FF),Y     ; Store the value of A (0) into $FF+Y 
+        INY             ; Increment Y
+        DEX             ; Decrement X
+BNE CLRM1               ; Jump back if X != 0
+        RTS             ; Return from the subroutine
                          ")
             .unwrap();
 
