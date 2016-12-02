@@ -208,7 +208,7 @@ impl Lexer {
 
         self.consume_whitespace(&mut peeker);
 
-        Ok(self.classify(&tok))
+        Ok(self.classify(&tok.to_uppercase()))
     }
 
     /// Decides the base of a number we are about to consume
@@ -292,7 +292,7 @@ impl Lexer {
 
         self.consume_whitespace(&mut peeker);
 
-        Ok(Token::Digits(result, base.clone()))
+        Ok(Token::Digits(result.to_uppercase(), base.clone()))
     }
 
     /// Consumes a memory address
@@ -303,6 +303,7 @@ impl Lexer {
 
         // Grab the actual numbers
         if let Token::Digits(val, base) = self.consume_number(&mut peeker)? {
+            let val = val.to_uppercase();
             // if the length is greater than 4.. its outside the memory bounds
             if val.len() > 4 {
                 return Err(LexerError::out_of_bounds(&val, self.line, self.col - val.len() as u32));
@@ -340,10 +341,15 @@ impl Lexer {
                 if let Some(_) = peeker.peek() {
                     if *peeker.peek().unwrap() == ',' {
                         self.advance(&mut peeker);
+                        self.consume_whitespace(&mut peeker);
+
                         if *peeker.peek().unwrap() == 'X' {
                             token_type = Token::ZeroPageX(val.clone());
                             self.advance(&mut peeker);
+
+                            self.consume_whitespace(&mut peeker);
                             self.advance(&mut peeker);
+                            self.consume_whitespace(&mut peeker);
                         }
                     }
                 }
@@ -368,6 +374,8 @@ impl Lexer {
         let addr = self.consume_address(&mut peeker)?;
 
         if let Token::ZeroPageX(val) = addr {
+            let val = val.to_uppercase();
+
             // Its IndirectX
             self.consume_whitespace(&mut peeker);
 
@@ -384,6 +392,8 @@ impl Lexer {
 
                     if *peeker.peek().unwrap() == 'Y' {
                         if let Token::ZeroPage(val) = addr {
+                            let val = val.to_uppercase();
+
                             self.advance(&mut peeker);
                             self.consume_whitespace(&mut peeker);
 
@@ -400,6 +410,7 @@ impl Lexer {
 
     /// Consumes whitespace characters until it encounters a
     /// non-whitespace character
+    #[inline(always)]
     fn consume_whitespace<I>(&mut self, mut peeker: &mut Peekable<I>)
         where I: Iterator<Item = char>
     {
@@ -442,10 +453,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(&[Token::Label("LOL".into()),
-                     Token::Label("this".into()),
-                     Token::Label("is".into()),
-                     Token::Label("totally".into()),
-                     Token::Label("broken".into())],
+                     Token::Label("THIS".into()),
+                     Token::Label("IS".into()),
+                     Token::Label("TOTALLY".into()),
+                     Token::Label("BROKEN".into())],
                    &tokens[0][..]);
     }
 
@@ -689,5 +700,35 @@ CLRM1   STA ($FF),Y     ; Store the value of A (0) into $FF+Y
         let tokens = lexer.lex_string("   LDA     (   $FF        )    ,          Y").unwrap();
 
         assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectY("FF".into())], &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_handle_lots_of_whitespace_for_indirect_x() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("   LDA     (   $FF            ,          X                )   ").unwrap();
+
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectX("FF".into())], &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_handle_lots_of_whitespace_for_absolute() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("   LDA        $FF00      ").unwrap();
+
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::Absolute("FF00".into())], &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_handle_lowercase_code() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
+            lda #$00
+            tax
+            inx
+        ").unwrap();
+
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::Immediate("00".into(), ImmediateBase::Base16)], &tokens[0][..]);
+        assert_eq!(&[Token::OpCode("TAX".into())], &tokens[1][..]);
+        assert_eq!(&[Token::OpCode("INX".into())], &tokens[2][..]);
     }
 }
