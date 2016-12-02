@@ -107,6 +107,10 @@ impl Lexer {
     fn advance<I>(&mut self, mut peeker: &mut Peekable<I>)
         where I: Iterator<Item = char>
     {
+        if let None = peeker.peek() {
+            return;
+        }
+
         peeker.next();
         self.col += 1;
     }
@@ -202,6 +206,8 @@ impl Lexer {
             }
         }
 
+        self.consume_whitespace(&mut peeker);
+
         Ok(self.classify(&tok))
     }
 
@@ -284,6 +290,8 @@ impl Lexer {
             self.advance(&mut peeker);
         }
 
+        self.consume_whitespace(&mut peeker);
+
         Ok(Token::Digits(result, base.clone()))
     }
 
@@ -322,6 +330,8 @@ impl Lexer {
                     }
                 }
 
+                self.consume_whitespace(&mut peeker);
+
                 Ok(token_type)
             } else {
                 // Its zero page
@@ -338,6 +348,8 @@ impl Lexer {
                     }
                 }
 
+                self.consume_whitespace(&mut peeker);
+
                 Ok(token_type)
             }
         } else {
@@ -351,21 +363,30 @@ impl Lexer {
     {
         let mut tok = String::new();
         self.advance(&mut peeker);; // Jump the opening parenthesis
+        self.consume_whitespace(&mut peeker);
+
         let addr = self.consume_address(&mut peeker)?;
 
         if let Token::ZeroPageX(val) = addr {
             // Its IndirectX
+            self.consume_whitespace(&mut peeker);
+
             return Ok(Token::IndirectX(val.clone()));
         } else {
             if *peeker.peek().unwrap() == ')' {
                 // High chance its IndirectY - lets check:
                 self.advance(&mut peeker);
+                self.consume_whitespace(&mut peeker);
+
                 if *peeker.peek().unwrap() == ',' {
                     self.advance(&mut peeker); // Skip the comma
                     self.consume_whitespace(&mut peeker);
+
                     if *peeker.peek().unwrap() == 'Y' {
                         if let Token::ZeroPage(val) = addr {
                             self.advance(&mut peeker);
+                            self.consume_whitespace(&mut peeker);
+
                             return Ok(Token::IndirectY(val.clone()));
                         }
                     }
