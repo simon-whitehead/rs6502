@@ -119,7 +119,6 @@ impl Lexer {
     fn lex(&mut self, source: String) -> Result<Vec<Vec<Token>>, LexerError> {
 
         let mut result = Vec::new();
-        let mut column_number = 0;
 
         for line in source.lines() {
             self.line += 1;
