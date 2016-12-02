@@ -1,5 +1,3 @@
-use opcodes::OpCode;
-
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum ImmediateBase {
     Base10,

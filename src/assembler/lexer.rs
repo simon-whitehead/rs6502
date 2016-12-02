@@ -5,11 +5,9 @@
 use std;
 use std::error::Error;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::Read;
 use std::iter::Peekable;
 use std::str;
-use std::str::Chars;
-
 use assembler::token::{ImmediateBase, Token};
 use ::opcodes::OpCode;
 
@@ -214,8 +212,6 @@ impl Lexer {
     fn consume_number<I>(&mut self, mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
         where I: Iterator<Item = char>
     {
-        let mut tok = String::new();
-
         // Default to base16
         let mut base = ImmediateBase::Base16;
 
@@ -298,10 +294,8 @@ impl Lexer {
     fn consume_address<I>(&mut self, mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
         where I: Iterator<Item = char>
     {
-        let mut tok = String::new();
-
         // Grab the actual numbers
-        if let Token::Digits(val, base) = self.consume_number(&mut peeker)? {
+        if let Token::Digits(val, _) = self.consume_number(&mut peeker)? {
             let val = val.to_uppercase();
             // if the length is greater than 4.. its outside the memory bounds
             if val.len() > 4 {
@@ -366,7 +360,6 @@ impl Lexer {
     fn consume_indirect<I>(&mut self, mut peeker: &mut Peekable<I>) -> Result<Token, LexerError>
         where I: Iterator<Item = char>
     {
-        let mut tok = String::new();
         self.advance(&mut peeker);; // Jump the opening parenthesis
         self.consume_whitespace(&mut peeker);
 
@@ -429,7 +422,7 @@ impl Lexer {
     /// Classifies an alphanumeric token into either an op code
     /// or a label
     fn classify(&mut self, input: &str) -> Token {
-        let mut tok = String::from(input);
+        let tok = String::from(input);
         if let Some(opcode) = OpCode::from_mnemonic(tok.clone()) {
             Token::OpCode(tok.clone())
         } else {
