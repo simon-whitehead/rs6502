@@ -661,4 +661,12 @@ CLRM1   STA ($FF),Y     ; Store the value of A (0) into $FF+Y
                      Token::Absolute("101".into())],
                    &tokens[1][..]);
     }
+
+    #[test]
+    fn can_handle_lots_of_whitespace() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("   LDA     (   $FF        )    ,          Y").unwrap();
+
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectY("FF".into())], &tokens[0][..]);
+    }
 }
