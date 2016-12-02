@@ -13,7 +13,7 @@ use ::opcodes::OpCode;
 
 #[derive(Debug, PartialEq)]
 pub struct LexerError {
-    pub message: String,
+    message: String,
 }
 
 impl LexerError {

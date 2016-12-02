@@ -4,7 +4,7 @@ pub enum ImmediateBase {
     Base16,
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Token {
     Unknown(String),
     Label(String),
