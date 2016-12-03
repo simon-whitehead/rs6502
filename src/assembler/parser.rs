@@ -20,6 +20,10 @@ impl ParserError {
     fn unexpected_eol(line: u32) -> ParserError {
         ParserError::from(format!("Unexpected end of line. Line {}", line))
     }
+
+    fn expected_eol(line: u32) -> ParserError {
+        ParserError::from(format!("Expected end of line. Line {}", line))
+    }
 }
 
 impl From<String> for ParserError {
@@ -100,12 +104,19 @@ impl Parser {
             // Otherwise, lets try and convert
             // the next token to a mode
             let next = *peeker.peek().unwrap();
+            // Skip the argument
+            peeker.next();
             next.to_addressing_mode()
         };
 
         if let Some(opcode) = OpCode::from_mnemonic_and_addressing_mode(mnemonic.clone(),
                                                                         addressing_mode) {
-            Ok(())
+            // There should be nothing else now:
+            if let None = peeker.peek() {
+                Ok(())
+            } else {
+                Err(ParserError::expected_eol(line))
+            }
         } else {
             Err(ParserError::invalid_opcode_addressing_mode_combination(line))
         }
@@ -197,5 +208,16 @@ mod tests {
 
         assert_eq!(Err(ParserError::invalid_opcode_addressing_mode_combination(1)),
                    parser.parse());
+    }
+
+    #[test]
+    fn does_error_when_multiple_instructions_are_not_split_across_lines() {
+        let mut parser = Parser::new(vec![vec![Token::OpCode("LDA".into()),
+                                               Token::Absolute("4400".into()),
+                                               Token::OpCode("LDA".into()),
+                                               Token::Absolute("4400".into()),
+                                            ]]);
+
+        assert_eq!(Err(ParserError::expected_eol(1)), parser.parse());
     }
 }
