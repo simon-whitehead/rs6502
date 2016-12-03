@@ -51,6 +51,8 @@ impl Parser {
     /// Processes its tokens and either returns them to the caller
     /// or produces an error
     pub fn parse(&mut self) -> Result<Vec<Vec<Token>>, ParserError> {
+        let successful_result = self.tokens.iter().map(|v| v.clone()).collect();
+
         for line in &self.tokens {
             self.line += 1;
             let mut peeker = line.iter().peekable();
@@ -62,7 +64,8 @@ impl Parser {
                     // if its a label, consume it and move on
                     peeker.next();
                     if let None = peeker.peek() {
-                        return Err(ParserError::expected_instruction(self.line));
+                        // If its just a label, thats fine
+                        return Ok(successful_result);
                     }
                     let next = *peeker.peek().unwrap();
                     if let &Token::OpCode(_) = next {
@@ -74,7 +77,8 @@ impl Parser {
                 _ => (),
             }
         }
-        Ok(self.tokens.iter().map(|v| v.clone()).collect())
+
+        Ok(successful_result)
     }
 
     fn handle_opcode<'a, I>(mut peeker: &mut Peekable<I>,
@@ -153,5 +157,18 @@ mod tests {
                      Token::OpCode("LDA".into()),
                      Token::IndirectY("10".into())],
                    &result[0][..]);
+    }
+
+    #[test]
+    fn does_not_error_on_label_only_line() {
+        let mut parser = Parser::new(vec![vec![Token::Label("MAIN".into())],
+                                          vec![Token::OpCode("LDA".into()),
+                                               Token::Absolute("4400".into())]]);
+
+        let result = parser.parse().unwrap();
+
+        assert_eq!(&[Token::Label("MAIN".into())], &result[0][..]);
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::Absolute("4400".into())],
+                   &result[1][..]);
     }
 }
