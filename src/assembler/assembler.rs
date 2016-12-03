@@ -28,6 +28,8 @@ impl Assembler {
         let code = code.into();
         let mut lexer = Lexer::new();
         let tokens = lexer.lex_string(code)?;
+        let mut parser = Parser::new(tokens);
+        let tokens = parser.parse()?;
 
         Ok(Vec::new())
     }
@@ -37,6 +39,8 @@ impl Assembler {
     {
         let mut lexer = Lexer::new();
         let tokens = lexer.lex_file(path)?;
+        let mut parser = Parser::new(tokens);
+        let tokens = parser.parse()?;
 
         Ok(Vec::new())
     }
