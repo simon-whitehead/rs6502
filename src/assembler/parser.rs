@@ -5,7 +5,7 @@ use assembler::token::Token;
 
 #[derive(Debug, PartialEq)]
 pub struct ParserError {
-    message: String,
+    pub message: String,
 }
 
 impl ParserError {

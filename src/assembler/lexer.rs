@@ -13,7 +13,7 @@ use ::opcodes::OpCode;
 
 #[derive(Debug, PartialEq)]
 pub struct LexerError {
-    message: String,
+    pub message: String,
 }
 
 impl LexerError {
@@ -691,15 +691,19 @@ CLRM1   STA ($FF),Y     ; Store the value of A (0) into $FF+Y
         let mut lexer = Lexer::new();
         let tokens = lexer.lex_string("   LDA     (   $FF        )    ,          Y").unwrap();
 
-        assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectY("FF".into())], &tokens[0][..]);
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectY("FF".into())],
+                   &tokens[0][..]);
     }
 
     #[test]
     fn can_handle_lots_of_whitespace_for_indirect_x() {
         let mut lexer = Lexer::new();
-        let tokens = lexer.lex_string("   LDA     (   $FF            ,          X                )   ").unwrap();
+        let tokens =
+            lexer.lex_string("   LDA     (   $FF            ,          X                )   ")
+                .unwrap();
 
-        assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectX("FF".into())], &tokens[0][..]);
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectX("FF".into())],
+                   &tokens[0][..]);
     }
 
     #[test]
@@ -707,7 +711,8 @@ CLRM1   STA ($FF),Y     ; Store the value of A (0) into $FF+Y
         let mut lexer = Lexer::new();
         let tokens = lexer.lex_string("   LDA        $FF00      ").unwrap();
 
-        assert_eq!(&[Token::OpCode("LDA".into()), Token::Absolute("FF00".into())], &tokens[0][..]);
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::Absolute("FF00".into())],
+                   &tokens[0][..]);
     }
 
     #[test]
@@ -717,9 +722,12 @@ CLRM1   STA ($FF),Y     ; Store the value of A (0) into $FF+Y
             lda #$00
             tax
             inx
-        ").unwrap();
+        ")
+            .unwrap();
 
-        assert_eq!(&[Token::OpCode("LDA".into()), Token::Immediate("00".into(), ImmediateBase::Base16)], &tokens[0][..]);
+        assert_eq!(&[Token::OpCode("LDA".into()),
+                     Token::Immediate("00".into(), ImmediateBase::Base16)],
+                   &tokens[0][..]);
         assert_eq!(&[Token::OpCode("TAX".into())], &tokens[1][..]);
         assert_eq!(&[Token::OpCode("INX".into())], &tokens[2][..]);
     }
