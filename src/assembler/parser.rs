@@ -74,14 +74,14 @@ impl Parser {
                     let next = *peeker.peek().unwrap();
                     if let &Token::OpCode(ref mnemonic) = next {
                         peeker.next();
-                        Self::handle_opcode(&mut peeker, mnemonic, self.line)?;
+                        Self::validate_opcode(&mut peeker, mnemonic, self.line)?;
                     } else {
                         return Err(ParserError::expected_instruction(self.line));
                     }
                 }
                 Token::OpCode(ref mnemonic) => {
                     peeker.next();
-                    Self::handle_opcode(&mut peeker, mnemonic, self.line)?;
+                    Self::validate_opcode(&mut peeker, mnemonic, self.line)?;
                 }
                 _ => (),
             }
@@ -90,10 +90,10 @@ impl Parser {
         Ok(successful_result)
     }
 
-    fn handle_opcode<'a, I>(mut peeker: &mut Peekable<I>,
-                            mnemonic: &str,
-                            line: u32)
-                            -> Result<(), ParserError>
+    fn validate_opcode<'a, I>(mut peeker: &mut Peekable<I>,
+                              mnemonic: &str,
+                              line: u32)
+                              -> Result<(), ParserError>
         where I: Iterator<Item = &'a Token>
     {
         // Determine an addressing mode that was attempted,
