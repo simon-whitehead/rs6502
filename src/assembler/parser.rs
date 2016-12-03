@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 
-use ::opcodes::OpCode;
+use ::opcodes::{AddressingMode, OpCode};
 use assembler::token::Token;
 
 #[derive(Debug, PartialEq)]
@@ -68,11 +68,16 @@ impl Parser {
                         return Ok(successful_result);
                     }
                     let next = *peeker.peek().unwrap();
-                    if let &Token::OpCode(_) = next {
-                        Self::handle_opcode(&mut peeker, &&next, self.line)?;
+                    if let &Token::OpCode(ref mnemonic) = next {
+                        peeker.next();
+                        Self::handle_opcode(&mut peeker, mnemonic, self.line)?;
                     } else {
                         return Err(ParserError::expected_instruction(self.line));
                     }
+                }
+                Token::OpCode(ref mnemonic) => {
+                    peeker.next();
+                    Self::handle_opcode(&mut peeker, mnemonic, self.line)?;
                 }
                 _ => (),
             }
@@ -82,27 +87,27 @@ impl Parser {
     }
 
     fn handle_opcode<'a, I>(mut peeker: &mut Peekable<I>,
-                            token: &Token,
+                            mnemonic: &str,
                             line: u32)
                             -> Result<(), ParserError>
         where I: Iterator<Item = &'a Token>
     {
-        if let None = peeker.peek() {
-            Err(ParserError::unexpected_eol(line))
+        // Determine an addressing mode that was attempted,
+        let addressing_mode = if let None = peeker.peek() {
+            // if there was no token, then its implied
+            AddressingMode::Implied
         } else {
-            peeker.next();
+            // Otherwise, lets try and convert
+            // the next token to a mode
             let next = *peeker.peek().unwrap();
-            let addressing_mode = next.to_addressing_mode();
-            if let &Token::OpCode(ref mnemonic) = token {
-                if let Some(opcode) = OpCode::from_mnemonic_and_addressing_mode(mnemonic.clone(),
-                                                                                addressing_mode) {
-                    Ok(())
-                } else {
-                    Err(ParserError::invalid_opcode_addressing_mode_combination(line))
-                }
-            } else {
-                Err(ParserError::expected_instruction(line))
-            }
+            next.to_addressing_mode()
+        };
+
+        if let Some(opcode) = OpCode::from_mnemonic_and_addressing_mode(mnemonic.clone(),
+                                                                        addressing_mode) {
+            Ok(())
+        } else {
+            Err(ParserError::invalid_opcode_addressing_mode_combination(line))
         }
     }
 }
@@ -170,5 +175,27 @@ mod tests {
         assert_eq!(&[Token::Label("MAIN".into())], &result[0][..]);
         assert_eq!(&[Token::OpCode("LDA".into()), Token::Absolute("4400".into())],
                    &result[1][..]);
+    }
+
+    #[test]
+    fn does_not_error_on_implied_addressing_mode() {
+        let mut parser = Parser::new(vec![vec![Token::OpCode("NOP".into())],
+                                          vec![Token::OpCode("BRK".into())],
+                                          vec![Token::OpCode("CLC".into())]]);
+
+        let result = parser.parse().unwrap();
+
+        assert_eq!(&[Token::OpCode("NOP".into())], &result[0][..]);
+        assert_eq!(&[Token::OpCode("BRK".into())], &result[1][..]);
+        assert_eq!(&[Token::OpCode("CLC".into())], &result[2][..]);
+    }
+
+    #[test]
+    fn does_error_on_implied_addressing_mode_opcodes_that_have_arguments() {
+        let mut parser = Parser::new(vec![vec![Token::OpCode("NOP".into()),
+                                               Token::Absolute("4400".into())]]);
+
+        assert_eq!(Err(ParserError::invalid_opcode_addressing_mode_combination(1)),
+                   parser.parse());
     }
 }

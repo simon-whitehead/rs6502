@@ -37,7 +37,7 @@ impl Token {
             Token::Indirect(_) => AddressingMode::Indirect,
             Token::IndirectX(_) => AddressingMode::IndirectX,
             Token::IndirectY(_) => AddressingMode::IndirectY,
-            _ => AddressingMode::Unknown,
+            _ => AddressingMode::Implied,
         }
     }
 }
