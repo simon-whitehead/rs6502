@@ -76,7 +76,11 @@ impl Parser {
                         peeker.next();
                         Self::validate_opcode(&mut peeker, mnemonic, self.line)?;
                     } else {
-                        return Err(ParserError::expected_instruction(self.line));
+                        if let &Token::Assignment = next {
+                            peeker.next();
+                        } else {
+                            return Err(ParserError::expected_instruction(self.line));
+                        }
                     }
                 }
                 Token::OpCode(ref mnemonic) => {
