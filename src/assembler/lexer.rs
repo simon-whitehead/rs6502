@@ -731,4 +731,22 @@ CLRM1   STA ($FF),Y     ; Store the value of A (0) into $FF+Y
         assert_eq!(&[Token::OpCode("TAX".into())], &tokens[1][..]);
         assert_eq!(&[Token::OpCode("INX".into())], &tokens[2][..]);
     }
+
+    #[test]
+    fn can_handle_variable_assignment_and_argument_use() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
+            VARIABLE = #$44
+            LDA VARIABLE
+        ")
+            .unwrap();
+
+        assert_eq!(&[Token::Label("VARIABLE".into()),
+                     Token::Assignment,
+                     Token::Immediate("44".into(), ImmediateBase::Base16)],
+                   &tokens[0][..]);
+
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::Label("VARIABLE".into())],
+                   &tokens[1][..]);
+    }
 }
