@@ -128,7 +128,7 @@ mod tests {
             LOOP INX
         ");
 
-        let var = assembler.symbol_table.get("VARIABLE").unwrap();
-        assert_eq!(&Symbol::Constant(Token::Absolute("4400".into())), var);
+        assert_eq!(&Symbol::Constant(Token::Absolute("4400".into())),
+                   assembler.symbol_table.get("VARIABLE").unwrap());
     }
 }
