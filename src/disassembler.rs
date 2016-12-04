@@ -135,7 +135,7 @@ impl Disassembler {
                 }
                 AddressingMode::Relative => {
                     let b1 = raw[i + 0x01];
-                    let mut offset = b1 as i8;
+                    let offset = b1 as i8;
                     let addr = if offset < 0 {
                         i - (-offset - 0x02) as usize
                     } else {

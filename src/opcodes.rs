@@ -1,5 +1,6 @@
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AddressingMode {
+    Unknown,
     Implied,
     Immediate,
     Indirect,
@@ -27,6 +28,24 @@ pub struct OpCode {
 impl OpCode {
     pub fn from_raw_byte(byte: u8) -> OpCode {
         OpCodes.iter().find(|opcode| opcode.code == byte).expect("Invalid opcode").clone()
+    }
+
+    pub fn from_mnemonic<S>(input: S) -> Option<OpCode>
+        where S: Into<String>
+    {
+        let input = input.into();
+        OpCodes.iter()
+            .find(|opcode| opcode.mnemonic == input.to_uppercase())
+            .cloned()
+    }
+
+    pub fn from_mnemonic_and_addressing_mode<S>(input: S, mode: AddressingMode) -> Option<OpCode>
+        where S: Into<String>
+    {
+        let input = input.into();
+        OpCodes.iter()
+            .find(|opcode| opcode.mnemonic == input.to_uppercase() && opcode.mode == mode)
+            .cloned()
     }
 }
 

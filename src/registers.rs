@@ -25,6 +25,7 @@ impl Default for StatusFlags {
     }
 }
 
+#[allow(non_snake_case)]
 pub struct Registers {
     A: u8,
     X: u8,
