@@ -49,6 +49,10 @@ impl LexerError {
     fn expected_memory_address(line: u32, column: u32) -> LexerError {
         LexerError::from(format!("Expected memory address. Line {} col {}", line, column))
     }
+
+    fn expected_closing_paren(line: u32, column: u32) -> LexerError {
+        LexerError::from(format!("Expected closing parenthesis. Line {} col {}", line, column))
+    }
 }
 
 impl From<std::io::Error> for LexerError {
@@ -149,6 +153,7 @@ impl Lexer {
                 } else if *peeker.peek().unwrap() == '(' {
                     // Indirect addressing
                     let token = self.consume_indirect(&mut peeker)?;
+                    let next = *peeker.peek().unwrap();
                     tokens.push(token);
                 } else if *peeker.peek().unwrap() == '$' {
                     let token = self.consume_address(&mut peeker)?;
@@ -195,16 +200,17 @@ impl Lexer {
             }
 
             let c = *peeker.peek().unwrap(); // Re-peek just in case the label ending was consumed
-            if c.is_whitespace() || c == ';' || c == '\n' {
-                break;
-            } else {
+            if c.is_alphanumeric() || c == '_' {
                 tok.push(c);
                 self.advance(&mut peeker);
+            } else {
+                break;
             }
         }
 
         self.consume_whitespace(&mut peeker);
 
+        println!("Consumed: {}", tok);
         Ok(self.classify(&tok.to_uppercase()))
     }
 
@@ -363,15 +369,42 @@ impl Lexer {
         self.advance(&mut peeker);; // Jump the opening parenthesis
         self.consume_whitespace(&mut peeker);
 
-        let addr = self.consume_address(&mut peeker)?;
+        // Is the indirect an address or a label?
+        if let None = peeker.peek() {
+            return Err(LexerError::expected_indirect_address(self.line, self.col));
+        }
 
-        if let Token::ZeroPageX(val) = addr {
+        // Consume an address or a label
+        let next = *peeker.peek().unwrap();
+        let token = if next == '$' {
+            self.consume_address(&mut peeker)?
+        } else {
+            self.consume_alphanumeric(&mut peeker)?
+        };
+
+        if let Token::ZeroPageX(val) = token {
             let val = val.to_uppercase();
 
             // Its IndirectX
             self.consume_whitespace(&mut peeker);
 
             return Ok(Token::IndirectX(val.clone()));
+        } else if let Token::Label(val) = token {
+            let val = val.to_uppercase();
+
+            // Its a label:
+            self.consume_whitespace(&mut peeker);
+
+            // Make sure the next thing is a closing paren
+            if let Some(c) = peeker.next() {
+                if c != ')' {
+                    return Err(LexerError::expected_closing_paren(self.line, self.col));
+                } else {
+                    self.advance(&mut peeker);
+                }
+            }
+
+            return Ok(Token::Label(val.clone()));
         } else {
             if *peeker.peek().unwrap() == ')' {
                 // High chance its IndirectY - lets check:
@@ -383,7 +416,7 @@ impl Lexer {
                     self.consume_whitespace(&mut peeker);
 
                     if *peeker.peek().unwrap() == 'Y' {
-                        if let Token::ZeroPage(val) = addr {
+                        if let Token::ZeroPage(val) = token {
                             let val = val.to_uppercase();
 
                             self.advance(&mut peeker);
@@ -747,6 +780,24 @@ CLRM1   STA ($FF),Y     ; Store the value of A (0) into $FF+Y
                    &tokens[0][..]);
 
         assert_eq!(&[Token::OpCode("LDA".into()), Token::Label("VARIABLE".into())],
+                   &tokens[1][..]);
+    }
+
+    #[test]
+    fn can_handle_variable_use_in_indirect_addressing_modes() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
+            VARIABLE = #$44
+            LDA (VARIABLE),Y
+        ")
+            .unwrap();
+
+        assert_eq!(&[Token::Label("VARIABLE".into()),
+                     Token::Assignment,
+                     Token::Immediate("44".into(), ImmediateBase::Base16)],
+                   &tokens[0][..]);
+
+        assert_eq!(&[Token::OpCode("LDA".into()), Token::IndirectY("VARIABLE".into())],
                    &tokens[1][..]);
     }
 }
