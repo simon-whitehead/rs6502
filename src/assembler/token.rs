@@ -1,4 +1,4 @@
-use ::opcodes::AddressingMode;
+use ::opcodes::{AddressingMode, OpCode};
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum ImmediateBase {
@@ -20,22 +20,11 @@ pub enum LexerToken {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone)]
-pub enum Token {
-    Unknown(String),
+pub enum ParserToken {
     Label(String),
-    OpCode(String),
-    Immediate(String, ImmediateBase),
-    ZeroPage(String),
-    ZeroPageX(String),
-    Absolute(String),
-    AbsoluteX(String),
-    AbsoluteY(String),
-    Indirect(String),
-    IndirectX(String),
-    IndirectY(String),
+    OpCode(OpCode),
+    RawByte(u8),
     Directive(String),
-    Digits(String, ImmediateBase),
-    Assignment,
 }
 
 impl Token {
