@@ -6,6 +6,19 @@ pub enum ImmediateBase {
     Base16,
 }
 
+#[derive(Clone, Debug, PartialEq )]
+pub enum LexerToken {
+    Ident(String),
+    Assignment,
+    Address(String),
+    OpenParenthesis,
+    CloseParenthesis,
+    Comma,
+    Period,
+    Immediate(String, ImmediateBase),
+    Colon,
+}
+
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Token {
     Unknown(String),
