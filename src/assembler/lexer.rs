@@ -38,20 +38,16 @@ impl LexerError {
                                  column))
     }
 
-    fn unexpected_eof() -> LexerError {
-        LexerError::from("Unexpected EOF")
+    fn error_consuming_number(line: u32, column: u32) -> LexerError {
+        LexerError::from(format!("Error consuming number. Line {} col {}", line, column))
     }
 
-    fn expected_indirect_address(line: u32, column: u32) -> LexerError {
-        LexerError::from(format!("Expected indirect addressing. Line {} col {}", line, column))
+    fn unexpected_eof() -> LexerError {
+        LexerError::from(format!("Unexpected end of file"))
     }
 
     fn expected_memory_address(line: u32, column: u32) -> LexerError {
         LexerError::from(format!("Expected memory address. Line {} col {}", line, column))
-    }
-
-    fn expected_closing_paren(line: u32, column: u32) -> LexerError {
-        LexerError::from(format!("Expected closing parenthesis. Line {} col {}", line, column))
     }
 }
 
@@ -154,6 +150,10 @@ impl Lexer {
                     // Indirect addressing
                     peeker.next(); // Jump it
                     tokens.push(LexerToken::OpenParenthesis);
+                } else if *peeker.peek().unwrap() == ')' {
+                    // Indirect addressing
+                    peeker.next(); // Jump it
+                    tokens.push(LexerToken::CloseParenthesis);
                 } else if *peeker.peek().unwrap() == '$' {
                     let token = self.consume_address(&mut peeker)?;
                     tokens.push(token);
@@ -212,32 +212,28 @@ impl Lexer {
         // Default to base16
         let mut base = ImmediateBase::Base16;
 
-        if let None = peeker.peek() {
-            Err(LexerError::unexpected_eof())
-        } else {
-            let c = *peeker.peek().unwrap();
-            if c == '$' {
-                // The number is base16
-                self.advance(&mut peeker);
-                self.consume_digits(&mut peeker, &base)
-            } else if c == '#' {
-                // The number is base 10
-                self.advance(&mut peeker);
-                if let None = peeker.peek() {
-                    return Err(LexerError::unexpected_eof());
-                }
-
-                base = ImmediateBase::Base10;
-                if *peeker.peek().unwrap() == '$' {
-                    // Skip over the dollar sign and revert to base16
-                    base = ImmediateBase::Base16;
-                    self.advance(&mut peeker);
-                }
-
-                self.consume_digits(&mut peeker, &base)
-            } else {
-                Err("Error consuming number".into())
+        let c = *peeker.peek().unwrap();
+        if c == '$' {
+            // The number is base16
+            self.advance(&mut peeker);
+            self.consume_digits(&mut peeker, &base)
+        } else if c == '#' {
+            // The number is base 10
+            self.advance(&mut peeker);
+            if let None = peeker.peek() {
+                return Err(LexerError::unexpected_eof());
             }
+
+            base = ImmediateBase::Base10;
+            if *peeker.peek().unwrap() == '$' {
+                // Skip over the dollar sign and revert to base16
+                base = ImmediateBase::Base16;
+                self.advance(&mut peeker);
+            }
+
+            self.consume_digits(&mut peeker, &base)
+        } else {
+            Err(LexerError::error_consuming_number(self.line, self.col))
         }
     }
 
@@ -366,6 +362,40 @@ mod tests {
                      LexerToken::Address("4400".into()),
                      LexerToken::Comma,
                      LexerToken::Ident("X".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_lex_indirect_y_addressing() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
+            LDA ($FF),Y
+        ")
+            .unwrap();
+
+        assert_eq!(&[LexerToken::Ident("LDA".into()),
+                     LexerToken::OpenParenthesis,
+                     LexerToken::Address("FF".into()),
+                     LexerToken::CloseParenthesis,
+                     LexerToken::Comma,
+                     LexerToken::Ident("Y".into())],
+                   &tokens[0][..]);
+    }
+
+    #[test]
+    fn can_lex_indirect_x_addressing() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
+            LDA ($FF,X)
+        ")
+            .unwrap();
+
+        assert_eq!(&[LexerToken::Ident("LDA".into()),
+                     LexerToken::OpenParenthesis,
+                     LexerToken::Address("FF".into()),
+                     LexerToken::Comma,
+                     LexerToken::Ident("X".into()),
+                     LexerToken::CloseParenthesis],
                    &tokens[0][..]);
     }
 }
