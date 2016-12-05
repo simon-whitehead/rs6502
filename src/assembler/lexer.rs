@@ -152,11 +152,11 @@ impl Lexer {
                     break;
                 } else if *peeker.peek().unwrap() == '(' {
                     // Indirect addressing
-                    peeker.next(); // Jump it
+                    self.advance(&mut peeker);
                     tokens.push(LexerToken::OpenParenthesis);
                 } else if *peeker.peek().unwrap() == ')' {
                     // Indirect addressing
-                    peeker.next(); // Jump it
+                    self.advance(&mut peeker);
                     tokens.push(LexerToken::CloseParenthesis);
                 } else if *peeker.peek().unwrap() == '$' {
                     let token = self.consume_address(&mut peeker)?;
@@ -172,11 +172,10 @@ impl Lexer {
                     self.advance(&mut peeker);
                     tokens.push(LexerToken::Assignment);
                 } else if *peeker.peek().unwrap() == ',' {
-                    println!("Comma found");
                     self.advance(&mut peeker);
                     tokens.push(LexerToken::Comma);
                 } else {
-                    return Err(LexerError::unexpected_token(self.line, self.col));
+                    return Err(LexerError::unexpected_token(self.line, self.col + 1));
                 }
             }
 
@@ -412,6 +411,33 @@ mod tests {
             LDA ($F-----F,X)
         ");
 
-        assert_eq!(Err(LexerError::unexpected_token(2, 18)), tokens);
+        assert_eq!(Err(LexerError::unexpected_token(2, 20)), tokens);
+    }
+
+    #[test]
+    fn errors_on_unexpected_token_square_bracket() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
+            LDA ($FF],X)
+        ");
+
+        assert_eq!(Err(LexerError::unexpected_token(2, 21)), tokens);
+    }
+
+    #[test]
+    fn can_handle_lots_of_whitespace() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
+            LDA (    $FF      ,   X                             )
+        ")
+            .unwrap();
+
+        assert_eq!(&[LexerToken::Ident("LDA".into()),
+                     LexerToken::OpenParenthesis,
+                     LexerToken::Address("FF".into()),
+                     LexerToken::Comma,
+                     LexerToken::Ident("X".into()),
+                     LexerToken::CloseParenthesis],
+                   &tokens[0][..]);
     }
 }
