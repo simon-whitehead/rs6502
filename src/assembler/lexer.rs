@@ -49,6 +49,10 @@ impl LexerError {
     fn expected_memory_address(line: u32, column: u32) -> LexerError {
         LexerError::from(format!("Expected memory address. Line {} col {}", line, column))
     }
+
+    fn unexpected_token(line: u32, column: u32) -> LexerError {
+        LexerError::from(format!("Unexpected token. Line {} col {}", line, column))
+    }
 }
 
 impl From<std::io::Error> for LexerError {
@@ -171,6 +175,8 @@ impl Lexer {
                     println!("Comma found");
                     self.advance(&mut peeker);
                     tokens.push(LexerToken::Comma);
+                } else {
+                    return Err(LexerError::unexpected_token(self.line, self.col));
                 }
             }
 
@@ -397,5 +403,15 @@ mod tests {
                      LexerToken::Ident("X".into()),
                      LexerToken::CloseParenthesis],
                    &tokens[0][..]);
+    }
+
+    #[test]
+    fn errors_on_unexpected_token() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
+            LDA ($F-----F,X)
+        ");
+
+        assert_eq!(Err(LexerError::unexpected_token(2, 18)), tokens);
     }
 }
