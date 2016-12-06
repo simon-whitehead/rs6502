@@ -39,23 +39,19 @@ impl<'a> From<&'a str> for ParserError {
 }
 
 pub struct Parser {
-    tokens: Vec<Vec<LexerToken>>,
     line: u32,
 }
 
 /// Parser processes a list of 6502 Assembly tokens
 impl Parser {
-    pub fn new(tokens: Vec<Vec<LexerToken>>) -> Parser {
-        Parser {
-            tokens: tokens,
-            line: 0,
-        }
+    pub fn new() -> Parser {
+        Parser { line: 0 }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<ParserToken>, ParserError> {
+    pub fn parse(&mut self, tokens: Vec<Vec<LexerToken>>) -> Result<Vec<ParserToken>, ParserError> {
         let mut result = Vec::new();
 
-        for line in &self.tokens {
+        for line in &tokens {
             self.line += 1;
 
             let mut peeker = line.iter().peekable();
@@ -72,6 +68,8 @@ impl Parser {
                 if Self::is_opcode(ident.clone()) {
                     // Yep its an opcode, lets figure out its addressing mode
                     peeker.next();
+                    let mut opcode = self.consume_opcode(&mut peeker, ident.clone())?;
+                    result.append(&mut opcode);
 
                 } else {
                     // Skip the ident and we'll check what is next
@@ -113,6 +111,28 @@ impl Parser {
             false
         }
     }
+
+    fn consume_opcode<'a, I, S>(&mut self,
+                                mut peeker: &mut Peekable<I>,
+                                ident: S)
+                                -> Result<Vec<ParserToken>, ParserError>
+        where I: Iterator<Item = &'a LexerToken>,
+              S: Into<String>
+    {
+        // If there is nothing else after this opcode.. lets check if there is
+        // a matching opcode with an implied addressing mode
+        if let None = peeker.peek() {
+            if let Some(opcode) =
+                   OpCode::from_mnemonic_and_addressing_mode(ident, AddressingMode::Implied) {
+                return Ok(vec![ParserToken::OpCode(opcode)]);
+            } else {
+                return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));
+            }
+        } else {
+            // TODO: Complete this
+            Ok(vec![ParserToken::Label("BLAH".into())])
+        }
+    }
 }
 
 #[cfg(test)]
@@ -126,8 +146,8 @@ mod tests {
         let tokens = vec![vec![LexerToken::Ident("MAIN".into())],
                           vec![LexerToken::Ident("START".into())]];
 
-        let mut parser = Parser::new(tokens);
-        let result = parser.parse().unwrap();
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens).unwrap();
 
         assert_eq!(&[ParserToken::Label("MAIN".into()), ParserToken::Label("START".into())],
                    &result[..]);
@@ -137,8 +157,8 @@ mod tests {
     fn can_detect_labels_via_colon_terminator() {
         let tokens = vec![vec![LexerToken::Ident("MAIN".into())], vec![LexerToken::Colon]];
 
-        let mut parser = Parser::new(tokens);
-        let result = parser.parse().unwrap();
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens).unwrap();
 
         assert_eq!(&[ParserToken::Label("MAIN".into())], &result[..]);
     }
@@ -148,9 +168,19 @@ mod tests {
         let tokens = vec![vec![LexerToken::Ident("MAIN".into()),
                                LexerToken::Ident("START".into())]];
 
-        let mut parser = Parser::new(tokens);
-        let result = parser.parse();
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens);
 
         assert_eq!(Err(ParserError::expected_instruction(1)), result);
+    }
+
+    #[test]
+    fn can_detect_opcode_with_implied_addressing_mode() {
+        let tokens = vec![vec![LexerToken::Ident("CLC".into())]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens).unwrap();
+
+        assert_eq!(&[ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("CLC", AddressingMode::Implied).unwrap())], &result[..]);
     }
 }

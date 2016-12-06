@@ -43,7 +43,7 @@ impl Assembler {
         let code = code.into();
         let mut lexer = Lexer::new();
         let tokens = lexer.lex_string(code)?;
-        let mut parser = Parser::new(tokens);
+        let mut parser = Parser::new();
         let tokens = Vec::new(); // TODO: Fix.
 
         Ok(self.assemble(tokens))
@@ -54,7 +54,7 @@ impl Assembler {
     {
         let mut lexer = Lexer::new();
         let tokens = lexer.lex_file(path)?;
-        let mut parser = Parser::new(tokens);
+        let mut parser = Parser::new();
         let tokens = Vec::new(); // TODO: Fix
 
         Ok(self.assemble(tokens))
