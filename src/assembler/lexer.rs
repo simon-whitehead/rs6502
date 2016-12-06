@@ -310,6 +310,7 @@ impl Lexer {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

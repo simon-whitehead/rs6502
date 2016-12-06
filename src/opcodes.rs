@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AddressingMode {
     Unknown,
     Implied,
@@ -16,7 +16,7 @@ pub enum AddressingMode {
     IndirectY,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct OpCode {
     pub code: u8,
     pub mnemonic: &'static str,
