@@ -530,4 +530,33 @@ mod tests {
                      ParserToken::RawByte(68)],
                    &result[..]);
     }
+
+    #[test]
+    fn errors_on_incorrect_indirect_x_addressing() {
+        let tokens = vec![vec![LexerToken::Ident("LDA".into()),
+                               LexerToken::OpenParenthesis,
+                               LexerToken::Address("44".into()),
+                               LexerToken::Comma,
+                               LexerToken::Ident("B".into()),
+                               LexerToken::CloseParenthesis]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens);
+
+        assert_eq!(Err(ParserError::unexpected_token(1)), result);
+    }
+
+    #[test]
+    fn errors_on_indirect_addressing_early_eol() {
+        let tokens = vec![vec![LexerToken::Ident("LDA".into()),
+                               LexerToken::OpenParenthesis,
+                               LexerToken::Address("44".into()),
+                               LexerToken::Comma,
+                               LexerToken::Ident("X".into())]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens);
+
+        assert_eq!(Err(ParserError::unexpected_eol(1)), result);
+    }
 }
