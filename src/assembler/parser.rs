@@ -33,6 +33,14 @@ impl ParserError {
     fn unexpected_token(line: u32) -> ParserError {
         ParserError::from(format!("Unexpected token. Line {}", line))
     }
+
+    fn address_out_of_bounds(line: u32) -> ParserError {
+        ParserError::from(format!("Address too large. Line {}", line))
+    }
+
+    fn expected_address(line: u32) -> ParserError {
+        ParserError::from(format!("Unexpected token, expected address. Line {}", line))
+    }
 }
 
 impl From<String> for ParserError {
@@ -243,9 +251,150 @@ impl Parser {
                 } else {
                     return Err(ParserError::cannot_parse_address(self.line));
                 }
+            } else if let &LexerToken::OpenParenthesis = next {
+                // We're moving into Indirect memory addressing
+                let addressing_mode = AddressingMode::Indirect;
+                peeker.next(); // skip the opening paren
+
+                // If we have nothing else, thats an error
+                if let None = peeker.peek() {
+                    return Err(ParserError::unexpected_eol(self.line));
+                }
+
+                // Is the next thing an address?
+                let next = *peeker.peek().unwrap();
+                if let &LexerToken::Address(ref address) = next {
+                    if address.len() != 2 && address.len() != 4 {
+                        return Err(ParserError::address_out_of_bounds(self.line));
+                    }
+
+                    let bytes = if address.len() == 2 {
+                        // Its a 1 byte address
+                        if let Ok(raw_byte) = u8::from_str_radix(&address[..], 16) {
+                            vec![raw_byte]
+                        } else {
+                            return Err(ParserError::cannot_parse_address(self.line));
+                        }
+                    } else {
+                        // Its a 2 byte address
+                        if let Ok(low_byte) = u8::from_str_radix(&address[2..], 16) {
+                            if let Ok(high_byte) = u8::from_str_radix(&address[0..2], 16) {
+                                vec![low_byte, high_byte]
+                            } else {
+                                return Err(ParserError::cannot_parse_address(self.line));
+                            }
+                        } else {
+                            return Err(ParserError::cannot_parse_address(self.line));
+                        }
+                    };
+
+                    // The address is the right length - lets jump over that and peek next
+                    peeker.next();
+                    if let None = peeker.peek() {
+                        return Err(ParserError::unexpected_eol(self.line));
+                    }
+                    let next = *peeker.peek().unwrap();
+                    if let &LexerToken::Comma = next {
+                        // If its a comma - lets target IndirectX
+                        peeker.next(); // skip the comma
+                        if let None = peeker.peek() {
+                            return Err(ParserError::unexpected_eol(self.line));
+                        }
+
+                        let next = *peeker.peek().unwrap();
+                        if let &LexerToken::Ident(ref register) = next {
+                            let register = register.to_uppercase();
+                            if register != "X" {
+                                return Err(ParserError::unexpected_token(self.line));
+                            }
+
+                            peeker.next(); // Jump over the X
+
+                            if let None = peeker.peek() {
+                                return Err(ParserError::unexpected_eol(self.line));
+                            }
+
+                            let next = *peeker.peek().unwrap();
+                            if let &LexerToken::CloseParenthesis = next {
+                                peeker.next();
+                                // Lets make sure we can find an appropriate opcode
+                                if let Some(opcode) = OpCode::from_mnemonic_and_addressing_mode(ident, AddressingMode::IndirectX) {
+                                    // We have everything we need now.. lets return an IndirectX opcode
+                                    // accompanied by the address
+                                    return Ok(vec![ParserToken::OpCode(opcode), ParserToken::RawByte(bytes[0])]);
+                                } else {
+                                    return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));
+                                }
+                            } else {
+                                return Err(ParserError::unexpected_token(self.line));
+                            }
+                        } else {
+                            return Err(ParserError::unexpected_token(self.line));
+                        }
+                    } else if let &LexerToken::CloseParenthesis = next {
+                        // We're headed for Indirect or IndirectY ..
+                        let addressing_mode = AddressingMode::IndirectY;
+                        peeker.next(); // Skip the closing paren
+
+                        if let None = peeker.peek() {
+                            // If this is the end.. then lets check if this
+                            // is the indirect jump: JMP ($0000)
+                            if let Some(opcode) = OpCode::from_mnemonic_and_addressing_mode(ident, AddressingMode::Indirect) {
+                                // Yep, we've found the only Indirect opcode
+                                let mut final_vec = vec![ParserToken::OpCode(opcode)];
+                                for b in bytes {
+                                    final_vec.push(ParserToken::RawByte(b));
+                                }
+                                return Ok(final_vec);
+                            } else {
+                                return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));
+                            }
+                        }
+
+                        // Lets check for a comma
+                        let next = *peeker.peek().unwrap();
+                        if let &LexerToken::Comma = next {
+                            // Great, lets continue
+                            peeker.next();  // Skip the comma
+                            if let None = peeker.peek() {
+                                return Err(ParserError::unexpected_eol(self.line));
+                            }
+
+                            let next = *peeker.peek().unwrap();
+                            if let &LexerToken::Ident(ref register) = next {
+                                let register = register.to_uppercase();
+                                // If its not IndirectY .. thats a problem
+                                if register != "Y" {
+                                    return Err(ParserError::unexpected_token(self.line));
+                                }
+                                if let Some(opcode) = OpCode::from_mnemonic_and_addressing_mode(ident, AddressingMode::Indirect) {
+                                    // Yep, we've found the only Indirect opcode
+                                    let mut final_vec = vec![ParserToken::OpCode(opcode)];
+                                    for b in bytes {
+                                        final_vec.push(ParserToken::RawByte(b));
+                                    }
+
+                                    return Ok(final_vec);
+                                } else {
+                                    return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));
+                                }
+                            } else {
+                                return Err(ParserError::unexpected_token(self.line));
+                            }
+                        } else {
+                            return Err(ParserError::unexpected_token(self.line));
+                        }
+                    } else {
+                        return Err(ParserError::unexpected_token(self.line));
+                    }
+                } else {
+                    return Err(ParserError::cannot_parse_address(self.line));
+                }
+            } else {
+                return Err(ParserError::expected_address(self.line));
             }
-            Ok(vec![ParserToken::Label("BLAH".into())])
         }
+        Ok(vec![ParserToken::Label("BLAH".into())])
     }
 }
 
@@ -360,6 +509,24 @@ mod tests {
 
         assert_eq!(&[
                      ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("LDX", AddressingMode::ZeroPageY).unwrap()),
+                     ParserToken::RawByte(68)],
+                   &result[..]);
+    }
+
+    #[test]
+    fn can_parse_indirect_x_addressing() {
+        let tokens = vec![vec![LexerToken::Ident("LDA".into()),
+                               LexerToken::OpenParenthesis,
+                               LexerToken::Address("44".into()),
+                               LexerToken::Comma,
+                               LexerToken::Ident("X".into()),
+                               LexerToken::CloseParenthesis]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens).unwrap();
+
+        assert_eq!(&[
+                     ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("LDA", AddressingMode::IndirectX).unwrap()),
                      ParserToken::RawByte(68)],
                    &result[..]);
     }
