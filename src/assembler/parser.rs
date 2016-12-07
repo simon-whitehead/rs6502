@@ -345,4 +345,20 @@ mod tests {
         assert_eq!(Err(ParserError::invalid_opcode_addressing_mode_combination(1)),
                    result);
     }
+
+    #[test]
+    fn can_handle_correct_zero_page_y_usage() {
+        let tokens = vec![vec![LexerToken::Ident("LDX".into()),
+                               LexerToken::Address("44".into()),
+                               LexerToken::Comma,
+                               LexerToken::Ident("Y".into())]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens).unwrap();
+
+        assert_eq!(&[
+                     ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("LDX", AddressingMode::ZeroPageY).unwrap()),
+                     ParserToken::RawByte(68)],
+                   &result[..]);
+    }
 }
