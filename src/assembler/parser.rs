@@ -190,7 +190,7 @@ impl Parser {
                         }
                     }
 
-                    // There is something after this zero page address - if its
+                    // There is something after this address - if its
                     // a comma, then we're peachy. If its something else.. Thats
                     // an error.
                     let next = *peeker.peek().unwrap();
@@ -229,6 +229,7 @@ impl Parser {
                                 for b in bytes {
                                     final_vec.push(ParserToken::RawByte(b));
                                 }
+                                return Ok(final_vec);
                             } else {
                                 return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));
                             }
@@ -312,5 +313,23 @@ mod tests {
         let result = parser.parse(tokens).unwrap();
 
         assert_eq!(&[ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("CLC", AddressingMode::Implied).unwrap())], &result[..]);
+    }
+
+    #[test]
+    fn can_detect_opcode_with_correct_absolute_x_addressing_mode() {
+        let tokens = vec![vec![LexerToken::Ident("MAIN".into()),
+                               LexerToken::Ident("LDA".into()),
+                               LexerToken::Address("4400".into()),
+                               LexerToken::Comma,
+                               LexerToken::Ident("X".into())]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens).unwrap();
+
+        assert_eq!(&[ParserToken::Label("MAIN".into()),
+                     ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("LDA", AddressingMode::AbsoluteX).unwrap()),
+                     ParserToken::RawByte(0),
+                     ParserToken::RawByte(68)],
+                   &result[..]);
     }
 }
