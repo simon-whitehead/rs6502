@@ -294,7 +294,7 @@ mod tests {
     }
 
     #[test]
-    fn can_detect_double_labels_on_one_line() {
+    fn can_parse_double_labels_on_one_line() {
         let tokens = vec![vec![LexerToken::Ident("MAIN".into()),
                                LexerToken::Ident("START".into())]];
 
@@ -305,7 +305,7 @@ mod tests {
     }
 
     #[test]
-    fn can_detect_opcode_with_implied_addressing_mode() {
+    fn can_parse_opcode_with_implied_addressing_mode() {
         let tokens = vec![vec![LexerToken::Ident("CLC".into())]];
 
         let mut parser = Parser::new();
@@ -315,7 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn can_detect_opcode_with_correct_absolute_x_addressing_mode() {
+    fn can_parse_opcode_with_correct_absolute_x_addressing_mode() {
         let tokens = vec![vec![LexerToken::Ident("MAIN".into()),
                                LexerToken::Ident("LDA".into()),
                                LexerToken::Address("4400".into()),
