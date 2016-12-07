@@ -334,6 +334,7 @@ mod tests {
 
     #[test]
     fn errors_on_incorrect_zero_page_y_usage() {
+        // LDA does not support the ZeroPageY addressing mode
         let tokens = vec![vec![LexerToken::Ident("LDA".into()),
                                LexerToken::Address("44".into()),
                                LexerToken::Comma,
@@ -348,6 +349,7 @@ mod tests {
 
     #[test]
     fn can_handle_correct_zero_page_y_usage() {
+        // LDX does support the ZeroPageY addressing mode
         let tokens = vec![vec![LexerToken::Ident("LDX".into()),
                                LexerToken::Address("44".into()),
                                LexerToken::Comma,
