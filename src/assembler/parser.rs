@@ -1,3 +1,4 @@
+use std;
 use std::iter::Peekable;
 
 use ::opcodes::{AddressingMode, OpCode};
@@ -75,7 +76,6 @@ impl Parser {
                 // Check if this is an opcode
                 if Self::is_opcode(ident.clone()) {
                     // Yep its an opcode, lets figure out its addressing mode
-                    peeker.next();
                     let mut opcode = self.consume_opcode(&mut peeker, ident.clone())?;
                     result.append(&mut opcode);
                 } else {
@@ -131,8 +131,11 @@ impl Parser {
                                 ident: S)
                                 -> Result<Vec<ParserToken>, ParserError>
         where I: Iterator<Item = &'a LexerToken>,
-              S: Into<String>
+              S: Into<String> + std::fmt::Display
     {
+        // Jump over the opcode
+        peeker.next();
+
         // If there is nothing else after this opcode.. lets check if there is
         // a matching opcode with an implied addressing mode
         if let None = peeker.peek() {
@@ -143,10 +146,6 @@ impl Parser {
                 return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));
             }
         } else {
-            // TODO: Complete this
-            // Jump over the opcode
-            peeker.next();
-
             // Check the next token, is it an address?
             let next = *peeker.peek().unwrap();
             if let &LexerToken::Address(ref address) = next {
@@ -331,5 +330,19 @@ mod tests {
                      ParserToken::RawByte(0),
                      ParserToken::RawByte(68)],
                    &result[..]);
+    }
+
+    #[test]
+    fn errors_on_incorrect_zero_page_y_usage() {
+        let tokens = vec![vec![LexerToken::Ident("LDA".into()),
+                               LexerToken::Address("44".into()),
+                               LexerToken::Comma,
+                               LexerToken::Ident("Y".into())]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens);
+
+        assert_eq!(Err(ParserError::invalid_opcode_addressing_mode_combination(1)),
+                   result);
     }
 }
