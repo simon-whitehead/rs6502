@@ -341,6 +341,10 @@ impl Parser {
                             // is the indirect jump: JMP ($0000)
                             if let Some(opcode) = OpCode::from_mnemonic_and_addressing_mode(ident, AddressingMode::Indirect) {
                                 // Yep, we've found the only Indirect opcode
+                                // Lets make sure the address is 16-bit
+                                if address.len() != 4 {
+                                    return Err(ParserError::address_out_of_bounds(self.line));
+                                }
                                 let mut final_vec = vec![ParserToken::OpCode(opcode)];
                                 for b in bytes {
                                     final_vec.push(ParserToken::RawByte(b));
@@ -559,5 +563,35 @@ mod tests {
         let result = parser.parse(tokens);
 
         assert_eq!(Err(ParserError::unexpected_eol(1)), result);
+    }
+
+    #[test]
+    fn can_parse_indirect_jump_instruction() {
+        let tokens = vec![vec![LexerToken::Ident("JMP".into()),
+                               LexerToken::OpenParenthesis,
+                               LexerToken::Address("4400".into()),
+                               LexerToken::CloseParenthesis]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens).unwrap();
+
+        assert_eq!(&[
+                     ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("JMP", AddressingMode::Indirect).unwrap()),
+                     ParserToken::RawByte(0),
+                     ParserToken::RawByte(68)],
+                   &result[..]);
+    }
+
+    #[test]
+    fn errors_on_eight_bit_indirect_jump_instruction() {
+        let tokens = vec![vec![LexerToken::Ident("JMP".into()),
+                               LexerToken::OpenParenthesis,
+                               LexerToken::Address("44".into()),
+                               LexerToken::CloseParenthesis]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens);
+
+        assert_eq!(Err(ParserError::address_out_of_bounds(1)), result);
     }
 }
