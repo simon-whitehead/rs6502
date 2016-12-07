@@ -24,6 +24,14 @@ impl ParserError {
     fn expected_eol(line: u32) -> ParserError {
         ParserError::from(format!("Expected end of line. Line {}", line))
     }
+
+    fn cannot_parse_address(line: u32) -> ParserError {
+        ParserError::from(format!("Unable to parse address. Line {}", line))
+    }
+
+    fn unexpected_token(line: u32) -> ParserError {
+        ParserError::from(format!("Unexpected token. Line {}", line))
+    }
 }
 
 impl From<String> for ParserError {
@@ -70,10 +78,9 @@ impl Parser {
                     peeker.next();
                     let mut opcode = self.consume_opcode(&mut peeker, ident.clone())?;
                     result.append(&mut opcode);
-
                 } else {
                     // Skip the ident and we'll check what is next
-                    peeker.next();
+                    let original_ident = peeker.next().unwrap();
                     // if there is nothing else - lets mark this as a Label and move on
                     if let None = peeker.peek() {
                         result.push(ParserToken::Label(ident.clone()));
@@ -89,12 +96,19 @@ impl Parser {
 
                     // Is the next one a label as well? Thats an error:
                     if let &LexerToken::Ident(ref ident) = next {
+                        // Lets add the original as a label
+                        if let &LexerToken::Ident(ref original_ident) = original_ident {
+                            result.push(ParserToken::Label(original_ident.clone()));
+                        }
+
                         if !Self::is_opcode(ident.clone()) {
                             return Err(ParserError::expected_instruction(self.line));
+                        } else {
+                            // Oh it is an opcode after the label - consume it
+                            let mut opcode = self.consume_opcode(&mut peeker, ident.clone())?;
+                            result.append(&mut opcode);
                         }
                     }
-
-                    let next = *peeker.peek().unwrap();
                 }
             }
         }
@@ -130,6 +144,106 @@ impl Parser {
             }
         } else {
             // TODO: Complete this
+            // Jump over the opcode
+            peeker.next();
+
+            // Check the next token, is it an address?
+            let next = *peeker.peek().unwrap();
+            if let &LexerToken::Address(ref address) = next {
+                // Its an address. What sort of address?
+                if address.len() == 2 || address.len() == 4 {
+                    // Its zero-page or absolute.. lets try and convert it to a raw byte
+                    let (bytes, addressing_mode) = if address.len() == 2 {
+                        // Its a 1 byte address
+                        if let Ok(raw_byte) = u8::from_str_radix(&address[..], 16) {
+                            (vec![raw_byte], AddressingMode::ZeroPage)
+                        } else {
+                            return Err(ParserError::cannot_parse_address(self.line));
+                        }
+                    } else {
+                        // Its a 2 byte address
+                        if let Ok(low_byte) = u8::from_str_radix(&address[2..], 16) {
+                            if let Ok(high_byte) = u8::from_str_radix(&address[0..2], 16) {
+                                (vec![low_byte, high_byte], AddressingMode::Absolute)
+                            } else {
+                                return Err(ParserError::cannot_parse_address(self.line));
+                            }
+                        } else {
+                            return Err(ParserError::cannot_parse_address(self.line));
+                        }
+                    };
+                    // consume the address and peek what is next:
+                    peeker.next();
+                    if let None = peeker.peek() {
+                        // Nothing else.. find an opcode with this ident and addressing mode
+                        if let Some(opcode) =
+                               OpCode::from_mnemonic_and_addressing_mode(ident, addressing_mode) {
+                            // We found one..
+                            let mut final_vec = vec![ParserToken::OpCode(opcode)];
+                            // Push the address bytes into the result
+                            for b in bytes {
+                                final_vec.push(ParserToken::RawByte(b));
+                            }
+                            return Ok(final_vec);
+                        } else {
+                            return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));
+                        }
+                    }
+
+                    // There is something after this zero page address - if its
+                    // a comma, then we're peachy. If its something else.. Thats
+                    // an error.
+                    let next = *peeker.peek().unwrap();
+                    if let &LexerToken::Comma = next {
+                        // Yes, its a comma. Consume it and check what is next
+                        peeker.next();
+                        // If theres nothing after the comma thats an error
+                        if let None = peeker.peek() {
+                            return Err(ParserError::unexpected_eol(self.line));
+                        }
+
+                        let next = *peeker.peek().unwrap();
+                        if let &LexerToken::Ident(ref register) = next {
+                            let register = register.to_uppercase();
+                            if register != "X" && register != "Y" {
+                                return Err(ParserError::unexpected_token(self.line));
+                            }
+                            let addressing_mode = if register == "X" {
+                                if addressing_mode == AddressingMode::ZeroPage {
+                                    AddressingMode::ZeroPageX
+                                } else {
+                                    AddressingMode::AbsoluteX
+                                }
+                            } else {
+                                if addressing_mode == AddressingMode::ZeroPage {
+                                    AddressingMode::ZeroPageY
+                                } else {
+                                    AddressingMode::AbsoluteY
+                                }
+                            };
+                            if let Some(opcode) =
+                                   OpCode::from_mnemonic_and_addressing_mode(ident, addressing_mode) {
+                                // We found one..
+                                let mut final_vec = vec![ParserToken::OpCode(opcode)];
+                                // Push the address bytes into the result
+                                for b in bytes {
+                                    final_vec.push(ParserToken::RawByte(b));
+                                }
+                            } else {
+                                return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));
+                            }
+                        } else {
+                            return Err(ParserError::unexpected_token(self.line));
+                        }
+                    } else {
+                        return Err(ParserError::unexpected_token(self.line));
+                    }
+                    let next = *peeker.peek().unwrap();
+
+                } else {
+                    return Err(ParserError::cannot_parse_address(self.line));
+                }
+            }
             Ok(vec![ParserToken::Label("BLAH".into())])
         }
     }
@@ -142,7 +256,7 @@ mod tests {
     use ::opcodes::{AddressingMode, OpCode};
 
     #[test]
-    fn can_detect_labels_via_lonely_label() {
+    fn can_parse_labels_via_lonely_label() {
         let tokens = vec![vec![LexerToken::Ident("MAIN".into())],
                           vec![LexerToken::Ident("START".into())]];
 
@@ -154,13 +268,29 @@ mod tests {
     }
 
     #[test]
-    fn can_detect_labels_via_colon_terminator() {
+    fn can_parse_labels_via_colon_terminator() {
         let tokens = vec![vec![LexerToken::Ident("MAIN".into())], vec![LexerToken::Colon]];
 
         let mut parser = Parser::new();
         let result = parser.parse(tokens).unwrap();
 
         assert_eq!(&[ParserToken::Label("MAIN".into())], &result[..]);
+    }
+
+    #[test]
+    fn can_parse_opcodes_after_labels_on_one_line() {
+        let tokens = vec![vec![LexerToken::Ident("MAIN".into()),
+                               LexerToken::Ident("LDA".into()),
+                               LexerToken::Address("4400".into())]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens).unwrap();
+
+        assert_eq!(&[ParserToken::Label("MAIN".into()),
+                     ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("LDA", AddressingMode::Absolute).unwrap()),
+                     ParserToken::RawByte(0),
+                     ParserToken::RawByte(68)],
+                   &result[..]);
     }
 
     #[test]
