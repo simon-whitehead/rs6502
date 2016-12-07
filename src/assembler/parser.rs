@@ -394,7 +394,8 @@ impl Parser {
                 return Err(ParserError::expected_address(self.line));
             }
         }
-        Ok(vec![ParserToken::Label("BLAH".into())])
+
+        unreachable!();
     }
 }
 
