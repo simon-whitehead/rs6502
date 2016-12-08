@@ -167,7 +167,10 @@ impl Lexer {
                     }
                 } else if *peeker.peek().unwrap() == '.' {
                     self.advance(&mut peeker);
-                    tokens.push(LexerToken::Comma);
+                    tokens.push(LexerToken::Period);
+                } else if *peeker.peek().unwrap() == ':' {
+                    self.advance(&mut peeker);
+                    tokens.push(LexerToken::Colon);
                 } else if *peeker.peek().unwrap() == '=' {
                     self.advance(&mut peeker);
                     tokens.push(LexerToken::Assignment);

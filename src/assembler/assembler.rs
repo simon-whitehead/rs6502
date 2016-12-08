@@ -113,8 +113,12 @@ impl Assembler {
 
         for token in tokens {
             if let &ParserToken::Label(ref label) = token {
+                // Insert a label with the specified memory address
+                // as its offset
                 self.symbol_table.insert(label.clone(), Symbol::Label(addr));
             } else if let &ParserToken::OpCode(opcode) = token {
+                // Add the length of this opcode to our
+                // address offset
                 addr += opcode.length as u16;
             }
         }
@@ -143,6 +147,20 @@ mod tests {
             MAIN LDA $4400
             PHA
             JMP MAIN
+        ")
+            .unwrap();
+
+        assert_eq!(&[0xAD, 0x00, 0x44, 0x48, 0x4C, 0x00, 0x00], &bytes[..]);
+    }
+
+    #[test]
+    fn can_jump_to_label_with_colon_behind() {
+        let mut assembler = Assembler::new();
+        let bytes = assembler.assemble_string("
+            MAIN:
+                LDA $4400
+                PHA
+                JMP MAIN
         ")
             .unwrap();
 
