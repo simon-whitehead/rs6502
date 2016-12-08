@@ -9,10 +9,7 @@ use assembler::parser::{Parser, ParserError};
 use assembler::token::{LexerToken, ParserToken};
 
 #[derive(Debug, PartialEq)]
-pub enum Symbol {
-    Label(u16), // Label + its byte offset
-    Constant(LexerToken), // The constant value
-}
+pub struct Label(u16);
 
 #[derive(Debug)]
 pub struct AssemblerError {
@@ -46,7 +43,7 @@ impl From<ParserError> for AssemblerError {
 }
 
 pub struct Assembler {
-    symbol_table: HashMap<String, Symbol>,
+    symbol_table: HashMap<String, Label>,
 }
 
 impl Assembler {
@@ -92,7 +89,7 @@ impl Assembler {
             } else if let ParserToken::RawByte(byte) = token {
                 result.push(byte);
             } else if let ParserToken::LabelArg(ref label) = token {
-                if let Some(&Symbol::Label(label_addr)) = self.symbol_table.get(label) {
+                if let Some(&Label(label_addr)) = self.symbol_table.get(label) {
                     let low_byte = (label_addr & 0xFF) as u8;
                     let high_byte = ((label_addr >> 8) & 0xFF) as u8;
 
@@ -115,7 +112,7 @@ impl Assembler {
             if let &ParserToken::Label(ref label) = token {
                 // Insert a label with the specified memory address
                 // as its offset
-                self.symbol_table.insert(label.clone(), Symbol::Label(addr));
+                self.symbol_table.insert(label.clone(), Label(addr));
             } else if let &ParserToken::OpCode(opcode) = token {
                 // Add the length of this opcode to our
                 // address offset
@@ -181,5 +178,35 @@ mod tests {
 
         assert_eq!(&[0x4C, 0x06, 0x00, 0x48, 0xA2, 0x0F, 0xAD, 0x00, 0x44, 0x60],
                    &bytes[..]);
+    }
+
+    #[test]
+    fn can_use_variables() {
+        let mut assembler = Assembler::new();
+        let bytes = assembler.assemble_string("
+            MAIN_ADDRESS = $0000
+            MAIN:
+            LDX #15
+            JMP MAIN_ADDRESS
+        ")
+            .unwrap();
+
+        assert_eq!(&[0xA2, 0x0F, 0x4C, 0x00, 0x00], &bytes[..]);
+    }
+
+    #[test]
+    fn can_use_variables_assigned_to_variables() {
+        let mut assembler = Assembler::new();
+        let bytes = assembler.assemble_string("
+            MAIN_ADDRESS = $0000
+            MAIN_ADDRESS_INDIRECT_ONE = MAIN_ADDRESS
+            MAIN_ADDRESS_INDIRECT_TWO = MAIN_ADDRESS_INDIRECT_ONE
+            MAIN:
+            LDX #15
+            JMP MAIN_ADDRESS_INDIRECT_TWO
+        ")
+            .unwrap();
+
+        assert_eq!(&[0xA2, 0x0F, 0x4C, 0x00, 0x00], &bytes[..]);
     }
 }

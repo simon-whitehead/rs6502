@@ -46,6 +46,10 @@ impl ParserError {
     fn cannot_parse_immediate(line: u32) -> ParserError {
         ParserError::from(format!("Unable to parse immedate value. Line {}", line))
     }
+
+    fn unknown_identifier(line: u32) -> ParserError {
+        ParserError::from(format!("Unknown identifier. Line {}", line))
+    }
 }
 
 impl From<String> for ParserError {
@@ -60,14 +64,11 @@ impl<'a> From<&'a str> for ParserError {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Symbol {
-    Label(u16), // Label + its byte offset
-    Constant(LexerToken), // The constant value
-}
+#[derive(Clone, Debug, PartialEq)]
+pub struct Variable(LexerToken);
 
 pub struct Parser {
-    symbol_table: HashMap<String, Symbol>,
+    symbol_table: HashMap<String, Variable>,
     line: u32,
 }
 
@@ -131,6 +132,26 @@ impl Parser {
                             let mut opcode = self.consume_opcode(&mut peeker, ident.clone())?;
                             result.append(&mut opcode);
                         }
+                    } else if let &LexerToken::Assignment = next {
+                        // Its a variable assignment - lets store the variable in the symbol table
+                        peeker.next(); // Jump the assignment operator
+                        if let None = peeker.peek() {
+                            return Err(ParserError::unexpected_eol(self.line));
+                        }
+
+                        let next = *peeker.peek().unwrap();
+                        if let &LexerToken::Address(ref address) = next {
+                            peeker.next(); // Skip the value
+                            self.symbol_table
+                                .insert(ident.clone(),
+                                        Variable(LexerToken::Address(address.clone())));
+                        } else if let &LexerToken::Ident(ref var_ident) = next {
+                            // Its another variable
+                            peeker.next();
+                            self.symbol_table
+                                .insert(ident.clone(),
+                                        Variable(LexerToken::Ident(var_ident.clone())));
+                        }
                     }
                 }
             }
@@ -170,15 +191,24 @@ impl Parser {
             }
         } else {
             // Check the next token, is it an address or label?
-            let mut next = *peeker.peek().unwrap();
-            if let &LexerToken::Ident(ref label) = next {
-                // Its a label and our ident is a JMP instruction? The assembler
-                // takes care of this later
-                let ident = ident.clone().into().to_uppercase();
-                if ident == "JMP" {
-                    return Ok(vec![ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("JMP", AddressingMode::Absolute).unwrap()), ParserToken::LabelArg(label.clone())]);
+            let mut next = (*peeker.peek().unwrap()).clone();
+            next = if let LexerToken::Ident(ref label) = next {
+                // Lets see if its a variable?
+                if let Ok(variable) = self.get_variable_value(label.clone()) {
+                    variable.clone().0
+                } else {
+                    // Its a label and our ident is a JMP instruction? The assembler
+                    // takes care of this later
+                    let ident = ident.clone().into().to_uppercase();
+                    if ident == "JMP" {
+                        return Ok(vec![ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("JMP", AddressingMode::Absolute).unwrap()), ParserToken::LabelArg(label.clone())]);
+                    }
+                    next.clone()
                 }
-            } else if let &LexerToken::Address(ref address) = next {
+            } else {
+                next.clone()
+            };
+            if let LexerToken::Address(ref address) = next {
                 // Its an address. What sort of address?
                 if address.len() == 2 || address.len() == 4 {
                     // Its zero-page or absolute.. lets try and convert it to a raw byte
@@ -273,7 +303,7 @@ impl Parser {
                 } else {
                     return Err(ParserError::cannot_parse_address(self.line));
                 }
-            } else if let &LexerToken::OpenParenthesis = next {
+            } else if let LexerToken::OpenParenthesis = next {
                 // We're moving into Indirect memory addressing
                 let addressing_mode = AddressingMode::Indirect;
                 peeker.next(); // skip the opening paren
@@ -416,7 +446,7 @@ impl Parser {
                 } else {
                     return Err(ParserError::cannot_parse_address(self.line));
                 }
-            } else if let &LexerToken::Immediate(ref immediate, base) = next {
+            } else if let LexerToken::Immediate(ref immediate, base) = next {
                 peeker.next(); // Jump over the immediate
                 if let Ok(val) = u8::from_str_radix(&immediate[..],
                                                     if base == ImmediateBase::Base10 {
@@ -440,6 +470,24 @@ impl Parser {
         }
 
         unreachable!();
+    }
+
+    fn get_variable_value<S>(&self, ident: S) -> Result<Variable, ParserError>
+        where S: Into<String>
+    {
+        let ident = ident.into();
+
+        if let Some(ref var) = self.symbol_table.get(&ident) {
+            let var = var.clone();
+            if let LexerToken::Ident(ref ident) = var.0 {
+                // If this is _yet another_ variable .. recursively find its value:
+                return self.get_variable_value(ident.clone());
+            } else {
+                return Ok(Variable(var.clone().0));
+            }
+        } else {
+            return Err(ParserError::unknown_identifier(self.line));
+        }
     }
 }
 
@@ -645,5 +693,20 @@ mod tests {
         assert_eq!(&[
                      ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("PHA", AddressingMode::Implied).unwrap())],
                    &result[..]);
+    }
+
+    #[test]
+    fn errors_on_incorrect_opcode_addressing_mode_with_variable() {
+        let tokens = vec![vec![LexerToken::Ident("MAIN_ADDRESS".into()),
+                               LexerToken::Assignment,
+                               LexerToken::Address("00".into())],
+                          vec![LexerToken::Ident("JMP".into()),
+                               LexerToken::Ident("MAIN_ADDRESS".into())]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens);
+
+        assert_eq!(Err(ParserError::invalid_opcode_addressing_mode_combination(2)),
+                   result);
     }
 }
