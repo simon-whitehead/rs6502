@@ -91,13 +91,18 @@ impl Assembler {
         let mut last_addressing_mode = AddressingMode::Absolute;
 
         for token in tokens {
+            // Push an opcode into the output and increment our address
+            // offset
             if let ParserToken::OpCode(opcode) = token {
                 result.push(opcode.code);
                 addr += opcode.length as u16;
                 last_addressing_mode = opcode.mode;
             } else if let ParserToken::RawByte(byte) = token {
+                // Push raw bytes directly into the output
                 result.push(byte);
             } else if let ParserToken::LabelArg(ref label) = token {
+                // Labels as arguments should be in the symbol table, look
+                // it up and calculate the address direction/location
                 if let Some(&Label(label_addr)) = self.symbol_table.get(label) {
                     if last_addressing_mode == AddressingMode::Absolute {
                         let low_byte = (label_addr & 0xFF) as u8;
@@ -258,6 +263,32 @@ mod tests {
     fn can_assemble_clearmem_implementation_that_jumps_forward() {
         let mut assembler = Assembler::new();
         let bytes = assembler.assemble_string("
+            jmp     clrmem
+            lda     #$00
+            beq     clrm1
+            nop
+            nop
+            brk
+            clrm1   sta ($ff),y
+                    iny             
+                    dex             
+                    bne clrm1       
+                    rts             
+            clrmem  lda #$00
+                    tay             
+            jmp     clrm1
+        ")
+            .unwrap();
+
+        assert_eq!(&[0x4C, 0x11, 0x00, 0xA9, 0x00, 0xF0, 0x03, 0xEA, 0xEA, 0x00, 0x91, 0xFF,
+                     0xC8, 0xCA, 0xD0, 0xFA, 0x60, 0xA9, 0x00, 0xA8, 0x4C, 0x0A, 0x00],
+                   &bytes[..]);
+    }
+
+    #[test]
+    fn can_assemble_clearmem_implementation_that_jumps_forward_and_is_lowercase() {
+        let mut assembler = Assembler::new();
+        let bytes = assembler.assemble_string("
             JMP     CLRMEM
             LDA     #$00
             BEQ     CLRM1
@@ -278,5 +309,19 @@ mod tests {
         assert_eq!(&[0x4C, 0x11, 0x00, 0xA9, 0x00, 0xF0, 0x03, 0xEA, 0xEA, 0x00, 0x91, 0xFF,
                      0xC8, 0xCA, 0xD0, 0xFA, 0x60, 0xA9, 0x00, 0xA8, 0x4C, 0x0A, 0x00],
                    &bytes[..]);
+    }
+
+    #[test]
+    fn can_use_variables_for_indirect_addressing() {
+        let mut assembler = Assembler::new();
+        let bytes = assembler.assemble_string("
+            MAIN_ADDRESS = $0000
+            MAIN:
+            LDX #15
+            LDA (MAIN_ADDRESS),Y
+        ")
+            .unwrap();
+
+        assert_eq!(&[0xA2, 0x0F, 0xB1, 0x00, 0x00], &bytes[..]);
     }
 }
