@@ -1,8 +1,9 @@
 use std;
+use std::collections::HashMap;
 use std::iter::Peekable;
 
 use ::opcodes::{AddressingMode, OpCode};
-use assembler::token::{LexerToken, ParserToken};
+use assembler::token::{ImmediateBase, LexerToken, ParserToken};
 
 #[derive(Debug, PartialEq)]
 pub struct ParserError {
@@ -41,6 +42,10 @@ impl ParserError {
     fn expected_address(line: u32) -> ParserError {
         ParserError::from(format!("Unexpected token, expected address. Line {}", line))
     }
+
+    fn cannot_parse_immediate(line: u32) -> ParserError {
+        ParserError::from(format!("Unable to parse immedate value. Line {}", line))
+    }
 }
 
 impl From<String> for ParserError {
@@ -55,14 +60,24 @@ impl<'a> From<&'a str> for ParserError {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Symbol {
+    Label(u16), // Label + its byte offset
+    Constant(LexerToken), // The constant value
+}
+
 pub struct Parser {
+    symbol_table: HashMap<String, Symbol>,
     line: u32,
 }
 
 /// Parser processes a list of 6502 Assembly tokens
 impl Parser {
     pub fn new() -> Parser {
-        Parser { line: 0 }
+        Parser {
+            symbol_table: HashMap::new(),
+            line: 0,
+        }
     }
 
     pub fn parse(&mut self, tokens: Vec<Vec<LexerToken>>) -> Result<Vec<ParserToken>, ParserError> {
@@ -139,7 +154,7 @@ impl Parser {
                                 ident: S)
                                 -> Result<Vec<ParserToken>, ParserError>
         where I: Iterator<Item = &'a LexerToken>,
-              S: Into<String> + std::fmt::Display
+              S: Into<String> + std::fmt::Display + Clone
     {
         // Jump over the opcode
         peeker.next();
@@ -154,9 +169,16 @@ impl Parser {
                 return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));
             }
         } else {
-            // Check the next token, is it an address?
-            let next = *peeker.peek().unwrap();
-            if let &LexerToken::Address(ref address) = next {
+            // Check the next token, is it an address or label?
+            let mut next = *peeker.peek().unwrap();
+            if let &LexerToken::Ident(ref label) = next {
+                // Its a label and our ident is a JMP instruction? The assembler
+                // takes care of this later
+                let ident = ident.clone().into().to_uppercase();
+                if ident == "JMP" {
+                    return Ok(vec![ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("JMP", AddressingMode::Absolute).unwrap()), ParserToken::LabelArg(label.clone())]);
+                }
+            } else if let &LexerToken::Address(ref address) = next {
                 // Its an address. What sort of address?
                 if address.len() == 2 || address.len() == 4 {
                     // Its zero-page or absolute.. lets try and convert it to a raw byte
@@ -394,6 +416,24 @@ impl Parser {
                 } else {
                     return Err(ParserError::cannot_parse_address(self.line));
                 }
+            } else if let &LexerToken::Immediate(ref immediate, base) = next {
+                peeker.next(); // Jump over the immediate
+                if let Ok(val) = u8::from_str_radix(&immediate[..],
+                                                    if base == ImmediateBase::Base10 {
+                                                        10
+                                                    } else {
+                                                        16
+                                                    }) {
+                    if let Some(opcode) =
+                           OpCode::from_mnemonic_and_addressing_mode(ident,
+                                                                     AddressingMode::Immediate) {
+                        return Ok(vec![ParserToken::OpCode(opcode), ParserToken::RawByte(val)]);
+                    } else {
+                        return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));
+                    }
+                } else {
+                    return Err(ParserError::cannot_parse_immediate(self.line));
+                }
             } else {
                 return Err(ParserError::expected_address(self.line));
             }
@@ -593,5 +633,17 @@ mod tests {
         let result = parser.parse(tokens);
 
         assert_eq!(Err(ParserError::address_out_of_bounds(1)), result);
+    }
+
+    #[test]
+    fn can_parse_implied_stack_instructions() {
+        let tokens = vec![vec![LexerToken::Ident("PHA".into())]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens).unwrap();
+
+        assert_eq!(&[
+                     ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("PHA", AddressingMode::Implied).unwrap())],
+                   &result[..]);
     }
 }

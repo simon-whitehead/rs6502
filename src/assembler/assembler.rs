@@ -1,3 +1,5 @@
+use std;
+
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -15,6 +17,20 @@ pub enum Symbol {
 #[derive(Debug)]
 pub struct AssemblerError {
     message: String,
+}
+
+impl AssemblerError {
+    fn unknown_label<S>(label: S) -> AssemblerError
+        where S: Into<String> + std::fmt::Display
+    {
+        AssemblerError::from(format!("Unknown label: '{}'", label))
+    }
+}
+
+impl From<String> for AssemblerError {
+    fn from(error: String) -> AssemblerError {
+        AssemblerError { message: error }
+    }
 }
 
 impl From<LexerError> for AssemblerError {
@@ -47,7 +63,7 @@ impl Assembler {
         let mut parser = Parser::new();
         let tokens = parser.parse(tokens)?;
 
-        Ok(self.assemble(tokens))
+        Ok(self.assemble(tokens)?)
     }
 
     pub fn assemble_file<P>(&mut self, path: P) -> Result<Vec<u8>, AssemblerError>
@@ -58,22 +74,50 @@ impl Assembler {
         let mut parser = Parser::new();
         let tokens = Vec::new(); // TODO: Fix
 
-        Ok(self.assemble(tokens))
+        Ok(self.assemble(tokens)?)
     }
 
-    fn assemble(&mut self, tokens: Vec<ParserToken>) -> Vec<u8> {
+    fn assemble(&mut self, tokens: Vec<ParserToken>) -> Result<Vec<u8>, AssemblerError> {
         // First, index the labels so we have addresses for them
+        self.index_labels(&tokens);
+
+        // Now assemble the code
         let mut result = Vec::new();
+        let mut addr: u16 = 0;
 
         for token in tokens {
             if let ParserToken::OpCode(opcode) = token {
                 result.push(opcode.code);
+                addr += opcode.length as u16;
             } else if let ParserToken::RawByte(byte) = token {
                 result.push(byte);
+            } else if let ParserToken::LabelArg(ref label) = token {
+                if let Some(&Symbol::Label(label_addr)) = self.symbol_table.get(label) {
+                    let low_byte = (label_addr & 0xFF) as u8;
+                    let high_byte = ((label_addr >> 8) & 0xFF) as u8;
+
+                    result.push(low_byte);
+                    result.push(high_byte);
+                } else {
+                    return Err(AssemblerError::unknown_label(label.clone()));
+                }
             }
         }
 
-        result
+        Ok(result)
+    }
+
+    /// Stores all labels in the code in a Symbol table for lookup later
+    fn index_labels(&mut self, tokens: &[ParserToken]) {
+        let mut addr: u16 = 0;
+
+        for token in tokens {
+            if let &ParserToken::Label(ref label) = token {
+                self.symbol_table.insert(label.clone(), Symbol::Label(addr));
+            } else if let &ParserToken::OpCode(opcode) = token {
+                addr += opcode.length as u16;
+            }
+        }
     }
 }
 
@@ -90,5 +134,34 @@ mod tests {
             .unwrap();
 
         assert_eq!(&[0xAD, 0x00, 0x44], &bytes[..]);
+    }
+
+    #[test]
+    fn can_jump_to_label_behind() {
+        let mut assembler = Assembler::new();
+        let bytes = assembler.assemble_string("
+            MAIN LDA $4400
+            PHA
+            JMP MAIN
+        ")
+            .unwrap();
+
+        assert_eq!(&[0xAD, 0x00, 0x44, 0x48, 0x4C, 0x00, 0x00], &bytes[..]);
+    }
+
+    #[test]
+    fn can_jump_to_label_ahead() {
+        let mut assembler = Assembler::new();
+        let bytes = assembler.assemble_string("
+            JMP MAIN
+            PHA
+            LDX #15
+            MAIN LDA $4400
+            RTS
+        ")
+            .unwrap();
+
+        assert_eq!(&[0x4C, 0x06, 0x00, 0x48, 0xA2, 0x0F, 0xAD, 0x00, 0x44, 0x60],
+                   &bytes[..]);
     }
 }

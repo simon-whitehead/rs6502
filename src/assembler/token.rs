@@ -22,6 +22,7 @@ pub enum LexerToken {
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ParserToken {
     Label(String),
+    LabelArg(String),
     OpCode(OpCode),
     Absolute(String),
     RawByte(u8),
