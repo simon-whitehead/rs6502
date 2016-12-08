@@ -260,7 +260,7 @@ mod tests {
     }
 
     #[test]
-    fn can_assemble_clearmem_implementation_that_jumps_forward() {
+    fn can_assemble_clearmem_implementation_that_jumps_forward_and_is_lowercase() {
         let mut assembler = Assembler::new();
         let bytes = assembler.assemble_string("
             jmp     clrmem
@@ -268,7 +268,6 @@ mod tests {
             beq     clrm1
             nop
             nop
-            brk
             clrm1   sta ($ff),y
                     iny             
                     dex             
@@ -280,13 +279,13 @@ mod tests {
         ")
             .unwrap();
 
-        assert_eq!(&[0x4C, 0x11, 0x00, 0xA9, 0x00, 0xF0, 0x03, 0xEA, 0xEA, 0x00, 0x91, 0xFF,
-                     0xC8, 0xCA, 0xD0, 0xFA, 0x60, 0xA9, 0x00, 0xA8, 0x4C, 0x0A, 0x00],
+        assert_eq!(&[0x4C, 0x10, 0x00, 0xA9, 0x00, 0xF0, 0x02, 0xEA, 0xEA, 0x91, 0xFF, 0xC8,
+                     0xCA, 0xD0, 0xFA, 0x60, 0xA9, 0x00, 0xA8, 0x4C, 0x09, 0x00],
                    &bytes[..]);
     }
 
     #[test]
-    fn can_assemble_clearmem_implementation_that_jumps_forward_and_is_lowercase() {
+    fn can_assemble_clearmem_implementation_that_jumps_forward() {
         let mut assembler = Assembler::new();
         let bytes = assembler.assemble_string("
             JMP     CLRMEM
