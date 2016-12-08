@@ -1,4 +1,4 @@
-use registers::Registers;
+use emulator::registers::Registers;
 
 pub struct Cpu {
     registers: Registers,

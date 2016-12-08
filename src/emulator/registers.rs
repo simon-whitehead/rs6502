@@ -2,7 +2,7 @@
 pub struct StatusFlags {
     carry: bool,
     zero: bool,
-    interrupt: bool,
+    interrupt_disabled: bool,
     decimal: bool,
     breakpoint: bool,
     unused: bool,
@@ -15,7 +15,7 @@ impl Default for StatusFlags {
         StatusFlags {
             carry: false,
             zero: false,
-            interrupt: true,
+            interrupt_disabled: true,
             decimal: false,
             breakpoint: false,
             unused: false,
