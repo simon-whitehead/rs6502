@@ -190,7 +190,7 @@ impl Parser {
                 return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));
             }
         } else {
-            // Check the next token, is it an address or label?
+            // Check the next token, is it an address or identifier?
             let mut next = (*peeker.peek().unwrap()).clone();
             next = if let LexerToken::Ident(ref label) = next {
                 // Lets see if its a variable?
@@ -314,8 +314,18 @@ impl Parser {
                 }
 
                 // Is the next thing an address?
-                let next = *peeker.peek().unwrap();
-                if let &LexerToken::Address(ref address) = next {
+                let mut next = (*peeker.peek().unwrap()).clone();
+                next = if let LexerToken::Ident(ref label) = next {
+                    // Lets see if its a variable?
+                    if let Ok(variable) = self.get_variable_value(label.clone()) {
+                        variable.clone().0
+                    } else {
+                        next.clone()
+                    }
+                } else {
+                    next.clone()
+                };
+                if let LexerToken::Address(ref address) = next {
                     if address.len() != 2 && address.len() != 4 {
                         return Err(ParserError::address_out_of_bounds(self.line));
                     }
@@ -423,7 +433,7 @@ impl Parser {
                                 if register != "Y" {
                                     return Err(ParserError::unexpected_token(self.line));
                                 }
-                                if let Some(opcode) = OpCode::from_mnemonic_and_addressing_mode(ident, AddressingMode::Indirect) {
+                                if let Some(opcode) = OpCode::from_mnemonic_and_addressing_mode(ident, AddressingMode::IndirectY) {
                                     // Yep, we've found the only Indirect opcode
                                     let mut final_vec = vec![ParserToken::OpCode(opcode)];
                                     for b in bytes {
