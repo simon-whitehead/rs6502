@@ -1,3 +1,4 @@
+use std::ops::Deref;
 
 pub enum MemoryBusErrorKind {
     WriteError,
@@ -32,5 +33,14 @@ impl MemoryBus for DefaultMemoryBus {
     fn write_byte(&mut self, addr: u16, byte: u8) -> Result<(), MemoryBusError> {
         self.ram[addr as usize] = byte;
         Ok(())
+    }
+}
+
+// Used in tests to verify specific memory states
+impl Deref for DefaultMemoryBus {
+    type Target = [u8; 1024 * 64];
+
+    fn deref(&self) -> &Self::Target {
+        &self.ram
     }
 }
