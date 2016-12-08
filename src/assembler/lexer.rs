@@ -128,6 +128,7 @@ impl Lexer {
 
             // Skip blank lines
             if line.trim().len() == 0 {
+                result.push(Vec::new());
                 continue;
             }
 
@@ -328,7 +329,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(&[LexerToken::Ident("LDA".into()), LexerToken::Address("4400".into())],
-                   &tokens[0][..]);
+                   &tokens[1][..]);
     }
 
     #[test]
@@ -342,7 +343,7 @@ mod tests {
         assert_eq!(&[LexerToken::Ident("MY_VARIABLE".into()),
                      LexerToken::Assignment,
                      LexerToken::Immediate("20".into(), ImmediateBase::Base16)],
-                   &tokens[0][..]);
+                   &tokens[1][..]);
     }
 
     #[test]
@@ -356,7 +357,7 @@ mod tests {
         assert_eq!(&[LexerToken::Ident("MY_VARIABLE".into()),
                      LexerToken::Assignment,
                      LexerToken::Immediate("50".into(), ImmediateBase::Base10)],
-                   &tokens[0][..]);
+                   &tokens[1][..]);
     }
 
     #[test]
@@ -371,7 +372,7 @@ mod tests {
                      LexerToken::Address("4400".into()),
                      LexerToken::Comma,
                      LexerToken::Ident("X".into())],
-                   &tokens[0][..]);
+                   &tokens[1][..]);
     }
 
     #[test]
@@ -388,7 +389,7 @@ mod tests {
                      LexerToken::CloseParenthesis,
                      LexerToken::Comma,
                      LexerToken::Ident("Y".into())],
-                   &tokens[0][..]);
+                   &tokens[1][..]);
     }
 
     #[test]
@@ -405,7 +406,7 @@ mod tests {
                      LexerToken::Comma,
                      LexerToken::Ident("X".into()),
                      LexerToken::CloseParenthesis],
-                   &tokens[0][..]);
+                   &tokens[1][..]);
     }
 
     #[test]
@@ -442,6 +443,6 @@ mod tests {
                      LexerToken::Comma,
                      LexerToken::Ident("X".into()),
                      LexerToken::CloseParenthesis],
-                   &tokens[0][..]);
+                   &tokens[1][..]);
     }
 }

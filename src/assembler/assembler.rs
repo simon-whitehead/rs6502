@@ -209,4 +209,20 @@ mod tests {
 
         assert_eq!(&[0xA2, 0x0F, 0x4C, 0x00, 0x00], &bytes[..]);
     }
+
+    #[test]
+    fn can_assemble_clearmem_implementation() {
+        let mut assembler = Assembler::new();
+        let bytes = assembler.assemble_string("
+            CLRMEM  LDA #$00
+                    TAY             
+            CLRM1   STA ($FF),Y
+                    INY             
+                    DEX             
+                    BNE CLRM1       
+                    RTS             
+        ")
+            .unwrap();
+
+    }
 }
