@@ -141,13 +141,11 @@ impl Parser {
 
                         let next = *peeker.peek().unwrap();
                         if let &LexerToken::Address(ref address) = next {
-                            peeker.next(); // Skip the value
                             self.symbol_table
                                 .insert(ident.clone(),
                                         Variable(LexerToken::Address(address.clone())));
                         } else if let &LexerToken::Ident(ref var_ident) = next {
                             // Its another variable
-                            peeker.next();
                             self.symbol_table
                                 .insert(ident.clone(),
                                         Variable(LexerToken::Ident(var_ident.clone())));
@@ -197,13 +195,21 @@ impl Parser {
                 if let Ok(variable) = self.get_variable_value(label.clone()) {
                     variable.clone().0
                 } else {
-                    // Its a label and our ident is a JMP instruction? The assembler
                     // takes care of this later
                     let ident = ident.clone().into().to_uppercase();
-                    if ident == "JMP" {
-                        return Ok(vec![ParserToken::OpCode(OpCode::from_mnemonic_and_addressing_mode("JMP", AddressingMode::Absolute).unwrap()), ParserToken::LabelArg(label.clone())]);
+                    let addressing_mode = if ident == "JMP" {
+                        AddressingMode::Absolute
+                    } else {
+                        AddressingMode::Relative
+                    };
+
+                    if let Some(opcode) =
+                           OpCode::from_mnemonic_and_addressing_mode(ident.clone(), addressing_mode) {
+                        return Ok(vec![ParserToken::OpCode(opcode),
+                                       ParserToken::LabelArg(label.clone())]);
+                    } else {
+                        return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));
                     }
-                    next.clone()
                 }
             } else {
                 next.clone()

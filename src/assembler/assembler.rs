@@ -1,6 +1,7 @@
 use std;
 
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::path::Path;
 
 use ::opcodes::{AddressingMode, OpCode};
@@ -21,6 +22,12 @@ impl AssemblerError {
         where S: Into<String> + std::fmt::Display
     {
         AssemblerError::from(format!("Unknown label: '{}'", label))
+    }
+
+    fn relative_offset_too_large<S>(context: S) -> AssemblerError
+        where S: Into<String> + Display
+    {
+        AssemblerError::from(format!("Branch too far: {}", context))
     }
 }
 
@@ -81,20 +88,39 @@ impl Assembler {
         // Now assemble the code
         let mut result = Vec::new();
         let mut addr: u16 = 0;
+        let mut last_addressing_mode = AddressingMode::Absolute;
 
         for token in tokens {
             if let ParserToken::OpCode(opcode) = token {
                 result.push(opcode.code);
                 addr += opcode.length as u16;
+                last_addressing_mode = opcode.mode;
             } else if let ParserToken::RawByte(byte) = token {
                 result.push(byte);
             } else if let ParserToken::LabelArg(ref label) = token {
                 if let Some(&Label(label_addr)) = self.symbol_table.get(label) {
-                    let low_byte = (label_addr & 0xFF) as u8;
-                    let high_byte = ((label_addr >> 8) & 0xFF) as u8;
+                    if last_addressing_mode == AddressingMode::Absolute {
+                        let low_byte = (label_addr & 0xFF) as u8;
+                        let high_byte = ((label_addr >> 8) & 0xFF) as u8;
 
-                    result.push(low_byte);
-                    result.push(high_byte);
+                        result.push(low_byte);
+                        result.push(high_byte);
+                    } else {
+                        // Its relative.. lets generate a relative branch
+                        if addr > label_addr {
+                            let distance = (label_addr as i16 - addr as i16) as i8;
+                            if distance < -128 || distance > 127 {
+                                return Err(AssemblerError::relative_offset_too_large(format!("Attempted jump to {} at {:04X}", label, addr)));
+                            }
+                            result.push(distance as u8);
+                        } else {
+                            let distance = label_addr - addr;
+                            if distance > 127 {
+                                return Err(AssemblerError::relative_offset_too_large(format!("Attempted jump to {} at {:04X}", label, addr)));
+                            }
+                            result.push(distance as u8);
+                        }
+                    }
                 } else {
                     return Err(AssemblerError::unknown_label(label.clone()));
                 }
@@ -224,5 +250,33 @@ mod tests {
         ")
             .unwrap();
 
+        assert_eq!(&[0xA9, 0x00, 0xA8, 0x91, 0xFF, 0xC8, 0xCA, 0xD0, 0xFA, 0x60],
+                   &bytes[..]);
+    }
+
+    #[test]
+    fn can_assemble_clearmem_implementation_that_jumps_forward() {
+        let mut assembler = Assembler::new();
+        let bytes = assembler.assemble_string("
+            JMP     CLRMEM
+            LDA     #$00
+            BEQ     CLRM1
+            NOP
+            NOP
+            BRK
+            CLRM1   STA ($FF),Y
+                    INY             
+                    DEX             
+                    BNE CLRM1       
+                    RTS             
+            CLRMEM  LDA #$00
+                    TAY             
+            JMP     CLRM1
+        ")
+            .unwrap();
+
+        assert_eq!(&[0x4C, 0x11, 0x00, 0xA9, 0x00, 0xF0, 0x03, 0xEA, 0xEA, 0x00, 0x91, 0xFF,
+                     0xC8, 0xCA, 0xD0, 0xFA, 0x60, 0xA9, 0x00, 0xA8, 0x4C, 0x0A, 0x00],
+                   &bytes[..]);
     }
 }
