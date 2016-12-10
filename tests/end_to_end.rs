@@ -87,3 +87,23 @@ fn INTEGRATION_can_add_binary_coded_decimal_numbers_in_accumulator() {
 
     assert_eq!(0x25, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_can_add_mixed_mode_numbers_in_accumulator() {
+    let asm = "
+        LDA #$20
+        ADC #10    ; A register should equal 0x2A
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+    let disassembler = rs6502::Disassembler::with_code_only();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step();
+    cpu.step();
+
+    assert_eq!(0x2A, cpu.registers.A);
+}
