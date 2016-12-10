@@ -1,5 +1,6 @@
 use ::opcodes::OpCode;
 
+use emulator::cpu_error::CpuError;
 use emulator::memory_bus::MemoryBus;
 use emulator::registers::Registers;
 
@@ -8,28 +9,6 @@ const DEFAULT_CODE_SEGMENT_START_ADDRESS: u16 = 0xC000;  // Default to a 16KB RO
 pub struct Cpu {
     memory: MemoryBus,
     pub registers: Registers,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum CpuErrorKind {
-    SegFault,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct CpuError {
-    message: String,
-    addr: u16,
-    kind: CpuErrorKind,
-}
-
-impl CpuError {
-    fn code_segment_out_of_range(addr: u16) -> CpuError {
-        CpuError {
-            message: format!("Attempted to layout code segment outside memory bounds"),
-            addr: addr,
-            kind: CpuErrorKind::SegFault,
-        }
-    }
 }
 
 pub type CpuLoadResult = Result<(), CpuError>;
@@ -77,6 +56,7 @@ impl Cpu {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use emulator::cpu_error::CpuError;
 
     #[test]
     fn can_instantiate_cpu() {
