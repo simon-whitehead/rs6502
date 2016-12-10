@@ -115,94 +115,97 @@ impl Disassembler {
 
         let mut i: usize = 0;
         while i < raw.len() {
-            let opcode = OpCode::from_raw_byte(raw[i]);
+            if let Some(opcode) = OpCode::from_raw_byte(raw[i]) {
 
-            // Each branch returns the opcode output and the
-            // disassembled output
-            let val = match opcode.mode {
-                AddressingMode::Immediate => {
-                    let imm = raw[i + 0x01];
-                    (format!("{:02X} {:02X}", opcode.code, imm), format!(" #${:02X}", imm))
-                }
-                AddressingMode::Indirect => {
-                    let b1 = raw[i + 0x01];
-                    let b2 = raw[i + 0x02];
+                // Each branch returns the opcode output and the
+                // disassembled output
+                let val = match opcode.mode {
+                    AddressingMode::Immediate => {
+                        let imm = raw[i + 0x01];
+                        (format!("{:02X} {:02X}", opcode.code, imm), format!(" #${:02X}", imm))
+                    }
+                    AddressingMode::Indirect => {
+                        let b1 = raw[i + 0x01];
+                        let b2 = raw[i + 0x02];
 
-                    let addr = LittleEndian::read_u16(&[b1, b2]);
+                        let addr = LittleEndian::read_u16(&[b1, b2]);
 
-                    (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
-                     format!(" (${:04X})", addr))
-                }
-                AddressingMode::Relative => {
-                    let b1 = raw[i + 0x01];
-                    let offset = b1 as i8;
-                    let addr = if offset < 0 {
-                        i - (-offset - 0x02) as usize
+                        (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
+                         format!(" (${:04X})", addr))
+                    }
+                    AddressingMode::Relative => {
+                        let b1 = raw[i + 0x01];
+                        let offset = b1 as i8;
+                        let addr = if offset < 0 {
+                            i - (-offset - 0x02) as usize
+                        } else {
+                            i + (offset as usize) + 0x02
+                        };
+
+                        (format!(" {:02X} {:02X}", opcode.code, b1), format!(" ${:04X}", addr))
+                    }
+                    AddressingMode::ZeroPage => {
+                        let b1 = raw[i + 0x01];
+                        (format!("{:02X} {:02X}", opcode.code, b1), format!(" ${:02X}", b1))
+                    }
+                    AddressingMode::ZeroPageX => {
+                        let b1 = raw[i + 0x01];
+                        (format!("{:02X} {:02X}", opcode.code, b1), format!(" ${:02X},X", b1))
+                    }
+                    AddressingMode::ZeroPageY => {
+                        let b1 = raw[i + 0x01];
+                        (format!("{:02X} {:02X}", opcode.code, b1), format!(" ${:02X},Y", b1))
+                    }
+                    AddressingMode::Absolute => {
+                        let b1 = raw[i + 0x01];
+                        let b2 = raw[i + 0x02];
+                        let addr = LittleEndian::read_u16(&[b1, b2]);
+                        (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
+                         format!(" ${:04X}", addr))
+                    }
+                    AddressingMode::AbsoluteX => {
+                        let b1 = raw[i + 0x01];
+                        let b2 = raw[i + 0x02];
+                        let addr = LittleEndian::read_u16(&[b1, b2]);
+                        (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
+                         format!(" ${:04X},X", addr))
+                    }
+                    AddressingMode::AbsoluteY => {
+                        let b1 = raw[i + 0x01];
+                        let b2 = raw[i + 0x02];
+                        let addr = LittleEndian::read_u16(&[b1, b2]);
+                        (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
+                         format!(" ${:04X},Y", addr))
+                    }
+                    AddressingMode::IndirectX => {
+                        let b1 = raw[i + 0x01];
+                        (format!("{:02X} {:02X}", opcode.code, b1), format!(" (${:02X},X)", b1))
+                    }
+                    AddressingMode::IndirectY => {
+                        let b1 = raw[i + 0x01];
+                        (format!(" {:02X} {:02X}", opcode.code, b1), format!(" (${:02X}),Y", b1))
+                    }
+                    _ => ("".into(), "".into()),
+                };
+
+                let opcode_text = if self.disable_offsets {
+                    if self.disable_opcodes {
+                        format!("{}{}\n", opcode.mnemonic, val.1)
                     } else {
-                        i + (offset as usize) + 0x02
-                    };
-
-                    (format!(" {:02X} {:02X}", opcode.code, b1), format!(" ${:04X}", addr))
-                }
-                AddressingMode::ZeroPage => {
-                    let b1 = raw[i + 0x01];
-                    (format!("{:02X} {:02X}", opcode.code, b1), format!(" ${:02X}", b1))
-                }
-                AddressingMode::ZeroPageX => {
-                    let b1 = raw[i + 0x01];
-                    (format!("{:02X} {:02X}", opcode.code, b1), format!(" ${:02X},X", b1))
-                }
-                AddressingMode::ZeroPageY => {
-                    let b1 = raw[i + 0x01];
-                    (format!("{:02X} {:02X}", opcode.code, b1), format!(" ${:02X},Y", b1))
-                }
-                AddressingMode::Absolute => {
-                    let b1 = raw[i + 0x01];
-                    let b2 = raw[i + 0x02];
-                    let addr = LittleEndian::read_u16(&[b1, b2]);
-                    (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
-                     format!(" ${:04X}", addr))
-                }
-                AddressingMode::AbsoluteX => {
-                    let b1 = raw[i + 0x01];
-                    let b2 = raw[i + 0x02];
-                    let addr = LittleEndian::read_u16(&[b1, b2]);
-                    (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
-                     format!(" ${:04X},X", addr))
-                }
-                AddressingMode::AbsoluteY => {
-                    let b1 = raw[i + 0x01];
-                    let b2 = raw[i + 0x02];
-                    let addr = LittleEndian::read_u16(&[b1, b2]);
-                    (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
-                     format!(" ${:04X},Y", addr))
-                }
-                AddressingMode::IndirectX => {
-                    let b1 = raw[i + 0x01];
-                    (format!("{:02X} {:02X}", opcode.code, b1), format!(" (${:02X},X)", b1))
-                }
-                AddressingMode::IndirectY => {
-                    let b1 = raw[i + 0x01];
-                    (format!(" {:02X} {:02X}", opcode.code, b1), format!(" (${:02X}),Y", b1))
-                }
-                _ => ("".into(), "".into()),
-            };
-
-            let opcode_text = if self.disable_offsets {
-                if self.disable_opcodes {
-                    format!("{}{}\n", opcode.mnemonic, val.1)
+                        format!("{:<8} {}{}\n", val.0, opcode.mnemonic, val.1)
+                    }
                 } else {
-                    format!("{:<8} {}{}\n", val.0, opcode.mnemonic, val.1)
-                }
+                    if self.disable_opcodes {
+                        format!("{:04X} {}{}\n", i, opcode.mnemonic, val.1)
+                    } else {
+                        format!("{:04X} {:<8} {}{}\n", i, val.0, opcode.mnemonic, val.1)
+                    }
+                };
+                result.push_str(&opcode_text);
+                i += opcode.length as usize;
             } else {
-                if self.disable_opcodes {
-                    format!("{:04X} {}{}\n", i, opcode.mnemonic, val.1)
-                } else {
-                    format!("{:04X} {:<8} {}{}\n", i, val.0, opcode.mnemonic, val.1)
-                }
-            };
-            result.push_str(&opcode_text);
-            i += opcode.length as usize;
+                panic!("Unsupported opcode");
+            }
         }
 
         result

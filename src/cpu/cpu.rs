@@ -53,9 +53,11 @@ impl Cpu {
     pub fn step<T>(&mut self) -> CpuStepResult {
         let byte = self.memory.read_byte(self.registers.PC);
 
-        let opcode = OpCode::from_raw_byte(byte);
-
-        Ok(())
+        if let Some(opcode) = OpCode::from_raw_byte(byte) {
+            Ok(())
+        } else {
+            Err(CpuError::unknown_opcode(self.registers.PC, byte))
+        }
     }
 }
 

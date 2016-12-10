@@ -26,8 +26,8 @@ pub struct OpCode {
 }
 
 impl OpCode {
-    pub fn from_raw_byte(byte: u8) -> OpCode {
-        OpCodes.iter().find(|opcode| opcode.code == byte).expect("Invalid opcode").clone()
+    pub fn from_raw_byte<'opcode>(byte: u8) -> Option<&'opcode OpCode> {
+        OpCodes.iter().find(|opcode| opcode.code == byte)
     }
 
     pub fn from_mnemonic<S>(input: S) -> Option<OpCode>
