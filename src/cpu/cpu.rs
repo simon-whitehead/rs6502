@@ -46,14 +46,19 @@ impl Cpu {
             self.memory.write_byte(addr + x as u16, code[x]);
         }
 
+        // Set the Program Counter to point at the
+        // start address of the code segment
+        self.registers.PC = addr;
+
         Ok(())
     }
 
     /// Runs a single instruction of code through the Cpu
-    pub fn step<T>(&mut self) -> CpuStepResult {
+    pub fn step(&mut self) -> CpuStepResult {
         let byte = self.memory.read_byte(self.registers.PC);
 
         if let Some(opcode) = OpCode::from_raw_byte(byte) {
+            println!("Found: {}", opcode.mnemonic);
             Ok(())
         } else {
             Err(CpuError::unknown_opcode(self.registers.PC, byte))
@@ -115,5 +120,15 @@ mod tests {
 
         assert_eq!(Err(CpuError::code_segment_out_of_range(0xFFFD)),
                    load_result);
+    }
+
+    #[test]
+    fn errors_on_unknown_opcode() {
+        let fake_code = vec![0xC3];
+        let mut cpu = Cpu::new();
+        cpu.load(&fake_code[..], None);
+        let step_result: CpuStepResult = cpu.step();
+
+        assert_eq!(Err(CpuError::unknown_opcode(0xC000, 0xC3)), step_result);// This is the unofficial DCP (d,X) opcode
     }
 }
