@@ -80,6 +80,7 @@ impl Cpu {
 
             match opcode.mnemonic {
                 "ADC" => self.adc(),
+                "AND" => self.and(&operand),
                 "CLD" => self.set_decimal_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
@@ -186,6 +187,15 @@ impl Cpu {
                               0x80;
 
         self.registers.A = result as u8 & 0xFF;
+    }
+
+    fn and(&mut self, operand: &Operand) {
+        let value = self.unwrap_immediate(&operand);
+        let result = self.registers.A & value;
+
+        self.registers.A = result;
+
+        self.flags.zero = result == 0;
     }
 
     fn lda(&mut self, operand: &Operand) {
@@ -378,5 +388,17 @@ mod tests {
 
         assert_eq!(0x20, cpu.registers.A);
         assert_eq!(0x20, cpu.memory[0x2000]);
+    }
+
+    #[test]
+    fn and_can_apply_logical_and_operation() {
+        // Load 255 into A and mask it against 0x0F
+        let code = vec![0xA9, 0xFF, 0x29, 0x0F];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(2);
+
+        assert_eq!(0x0F, cpu.registers.A);
     }
 }
