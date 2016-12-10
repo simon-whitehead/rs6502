@@ -27,12 +27,12 @@ impl Default for StatusFlags {
 
 #[allow(non_snake_case)]
 pub struct Registers {
-    A: u8,
-    X: u8,
-    Y: u8,
-    S: u8,
-    PC: u16,
-    P: StatusFlags,
+    pub A: u8,
+    pub X: u8,
+    pub Y: u8,
+    pub S: u8,
+    pub PC: u16,
+    pub P: StatusFlags,
 }
 
 impl Registers {

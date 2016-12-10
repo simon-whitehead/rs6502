@@ -1,43 +1,28 @@
 use std::ops::Deref;
 
-pub enum MemoryBusErrorKind {
-    WriteError,
-    ReadError,
-}
-
-pub struct MemoryBusError {
-    kind: MemoryBusErrorKind,
-}
-
-pub trait MemoryBus {
-    fn read_byte(&self, addr: u16) -> Result<u8, MemoryBusError>;
-    fn write_byte(&mut self, addr: u16, byte: u8) -> Result<(), MemoryBusError>;
-}
-
 /// Default, 64kb memory bus
-pub struct DefaultMemoryBus {
+pub struct MemoryBus {
     ram: [u8; 1024 * 64],
 }
 
-impl DefaultMemoryBus {
-    pub fn new() -> DefaultMemoryBus {
-        DefaultMemoryBus { ram: [0; 1024 * 64] }
-    }
-}
-
-impl MemoryBus for DefaultMemoryBus {
-    fn read_byte(&self, addr: u16) -> Result<u8, MemoryBusError> {
-        Ok(self.ram[addr as usize])
+impl MemoryBus {
+    pub fn new() -> MemoryBus {
+        MemoryBus { ram: [0; 1024 * 64] }
     }
 
-    fn write_byte(&mut self, addr: u16, byte: u8) -> Result<(), MemoryBusError> {
-        self.ram[addr as usize] = byte;
-        Ok(())
+    pub fn write_byte(&mut self, addr: u16, byte: u8) {
+        let addr = addr as usize;
+        self.ram[addr] = byte;
+    }
+
+    pub fn read_byte(&self, addr: u16) -> u8 {
+        let addr = addr as usize;
+        self.ram[addr]
     }
 }
 
 // Used in tests to verify specific memory states
-impl Deref for DefaultMemoryBus {
+impl Deref for MemoryBus {
     type Target = [u8; 1024 * 64];
 
     fn deref(&self) -> &Self::Target {
