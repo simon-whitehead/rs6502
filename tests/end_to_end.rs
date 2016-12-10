@@ -2,7 +2,7 @@
 extern crate rs6502;
 
 #[test]
-fn can_assemble_disassemble_basic_opcodes() {
+fn INTEGRATION_can_assemble_disassemble_basic_opcodes() {
     let asm = "LDA $4400";
 
     let mut assembler = rs6502::Assembler::new();
@@ -15,7 +15,7 @@ fn can_assemble_disassemble_basic_opcodes() {
 }
 
 #[test]
-fn can_assemble_disassemble_clearmem_implementation() {
+fn INTEGRATION_can_assemble_disassemble_clearmem_implementation() {
     let asm = "
             CLRMEM  LDA #$00
                     TAY             
@@ -45,4 +45,45 @@ fn can_assemble_disassemble_clearmem_implementation() {
     ")
                    .join("\n"),
                clean_disassembled);
+}
+
+#[test]
+fn INTEGRATION_can_add_basic_numbers_in_accumulator() {
+    let asm = "
+        LDA #$20
+        ADC #$10    ; A register should equal 48
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step();
+    cpu.step();
+
+    assert_eq!(0x30, cpu.registers.A);
+}
+
+#[test]
+fn INTEGRATION_can_add_binary_coded_decimal_numbers_in_accumulator() {
+    let asm = "
+        SED
+        LDA #$20
+        ADC #$05    ; A register should equal 0x25
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+    let disassembler = rs6502::Disassembler::with_code_only();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step();
+    cpu.step();
+    cpu.step();
+
+    assert_eq!(0x25, cpu.registers.A);
 }

@@ -157,7 +157,7 @@ impl Cpu {
 
         // Handle packed binary coded decimal
         if self.flags.decimal {
-            if result & 0x0F > 0x09 {
+            if (self.registers.A as u16 & 0x0F) + (value & 0x0F) + carry > 0x09 {
                 result += 0x06;
             }
 
