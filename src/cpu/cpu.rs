@@ -15,9 +15,9 @@ pub enum Operand {
 
 /// A representation of a 6502 microprocessor
 pub struct Cpu {
-    memory: MemoryBus,
+    pub memory: MemoryBus,
     pub registers: Registers,
-    flags: StatusFlags,
+    pub flags: StatusFlags,
 }
 
 pub type CpuLoadResult = Result<(), CpuError>;

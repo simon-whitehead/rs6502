@@ -55,3 +55,25 @@ fn INTEGRATION_CPU_can_add_mixed_mode_numbers_in_accumulator() {
 
     assert_eq!(0x2A, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_CPU_can_store_bytes_in_memory() {
+    let asm = "
+        LDA #$20
+        STA $2000
+        LDA #10
+        STA $2001
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(4);
+
+    assert_eq!(0x20, cpu.memory[0x2000]);
+    assert_eq!(0x0A, cpu.memory[0x2001]);
+    assert_eq!(0x00, cpu.memory[0x2002]);
+}
