@@ -77,3 +77,23 @@ fn INTEGRATION_CPU_can_store_bytes_in_memory() {
     assert_eq!(0x0A, cpu.memory[0x2001]);
     assert_eq!(0x00, cpu.memory[0x2002]);
 }
+
+#[test]
+fn INTEGRATION_CPU_can_overwrite_own_memory() {
+    let asm = "
+        LDA #$20
+        STA $C006
+        LDA #10
+        STA $2000
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(4);
+
+    assert_eq!(0x20, cpu.memory[0x2000]);
+}
