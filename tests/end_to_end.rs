@@ -76,7 +76,6 @@ fn INTEGRATION_can_add_binary_coded_decimal_numbers_in_accumulator() {
 
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
-    let disassembler = rs6502::Disassembler::with_code_only();
 
     let bytecode = assembler.assemble_string(asm).unwrap();
     cpu.load(&bytecode[..], None);
@@ -97,7 +96,6 @@ fn INTEGRATION_can_add_mixed_mode_numbers_in_accumulator() {
 
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
-    let disassembler = rs6502::Disassembler::with_code_only();
 
     let bytecode = assembler.assemble_string(asm).unwrap();
     cpu.load(&bytecode[..], None);
