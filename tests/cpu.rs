@@ -14,8 +14,7 @@ fn INTEGRATION_CPU_can_add_basic_numbers_in_accumulator() {
     let bytecode = assembler.assemble_string(asm).unwrap();
     cpu.load(&bytecode[..], None);
 
-    cpu.step();
-    cpu.step();
+    cpu.step_n(2);
 
     assert_eq!(0x30, cpu.registers.A);
 }
@@ -34,9 +33,7 @@ fn INTEGRATION_CPU_can_add_binary_coded_decimal_numbers_in_accumulator() {
     let bytecode = assembler.assemble_string(asm).unwrap();
     cpu.load(&bytecode[..], None);
 
-    cpu.step();
-    cpu.step();
-    cpu.step();
+    cpu.step_n(3);
 
     assert_eq!(0x25, cpu.registers.A);
 }
@@ -54,8 +51,7 @@ fn INTEGRATION_CPU_can_add_mixed_mode_numbers_in_accumulator() {
     let bytecode = assembler.assemble_string(asm).unwrap();
     cpu.load(&bytecode[..], None);
 
-    cpu.step();
-    cpu.step();
+    cpu.step_n(2);
 
     assert_eq!(0x2A, cpu.registers.A);
 }

@@ -62,6 +62,15 @@ impl Cpu {
         Ok(())
     }
 
+    /// Runs N instructions of code through the Cpu
+    pub fn step_n(&mut self, n: u32) -> CpuStepResult {
+        for i in 0..n {
+            self.step()?;
+        }
+
+        Ok(())
+    }
+
     /// Runs a single instruction of code through the Cpu
     pub fn step(&mut self) -> CpuStepResult {
         let byte = self.memory.read_byte(self.registers.PC);
