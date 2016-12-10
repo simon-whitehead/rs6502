@@ -6,6 +6,7 @@ use cpu::registers::Registers;
 
 const DEFAULT_CODE_SEGMENT_START_ADDRESS: u16 = 0xC000;  // Default to a 16KB ROM, leaving 32KB of main memory
 
+/// A representation of a 6502 microprocessor
 pub struct Cpu {
     memory: MemoryBus,
     pub registers: Registers,
@@ -15,6 +16,7 @@ pub type CpuLoadResult = Result<(), CpuError>;
 pub type CpuStepResult = Result<(), CpuError>;
 
 impl Cpu {
+    /// Returns a default instance of a Cpu
     pub fn new() -> Cpu {
         Cpu {
             memory: MemoryBus::new(),
@@ -22,6 +24,9 @@ impl Cpu {
         }
     }
 
+    /// Loads code into the Cpu main memory at an optional offset. If no
+    /// offset is provided, the Cpu will, by default, load the code into
+    /// main memory at 0xC000
     pub fn load<T>(&mut self, code: &[u8], addr: T) -> CpuLoadResult
         where T: Into<Option<u16>>
     {
@@ -44,6 +49,7 @@ impl Cpu {
         Ok(())
     }
 
+    /// Runs a single instruction of code through the Cpu
     pub fn step<T>(&mut self) -> CpuStepResult {
         let byte = self.memory.read_byte(self.registers.PC);
 
