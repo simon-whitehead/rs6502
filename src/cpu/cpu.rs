@@ -83,6 +83,7 @@ impl Cpu {
                 "CLD" => self.set_decimal_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
+                "STA" => self.sta(&operand),
                 _ => return Err(CpuError::unknown_opcode(self.registers.PC, opcode.code)),
             }
 
@@ -193,6 +194,13 @@ impl Cpu {
         self.registers.A = value;
     }
 
+    fn sta(&mut self, operand: &Operand) {
+        let addr = self.unwrap_address(&operand);
+        let value = self.registers.A;
+
+        self.write_byte(addr, value);
+    }
+
     fn set_decimal_flag(&mut self, value: bool) {
         self.flags.decimal = value;
     }
@@ -201,6 +209,12 @@ impl Cpu {
     /// in memory
     fn read_byte(&self, addr: u16) -> u8 {
         self.memory.read_byte(addr)
+    }
+
+    /// Convenience wrapper for writing a byte
+    /// to memory
+    fn write_byte(&mut self, addr: u16, byte: u8) {
+        self.memory.write_byte(addr, byte);
     }
 
     /// Convenience wrapper for accessing a word
@@ -312,8 +326,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.load(&code[..], None);
 
-        cpu.step();
-        cpu.step();
+        cpu.step_n(2);
 
         assert_eq!(8, cpu.registers.A);
     }
@@ -324,8 +337,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.load(&code[..], None);
 
-        cpu.step();
-        cpu.step();
+        cpu.step_n(2);
 
         assert_eq!(2, cpu.registers.A);
         assert_eq!(true, cpu.flags.carry);
@@ -337,9 +349,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.load(&code[..], None);
 
-        cpu.step();
-        cpu.step();
-        cpu.step();
+        cpu.step_n(3);
 
         assert_eq!(true, cpu.flags.decimal);
         assert_eq!(0x10, cpu.registers.A);
@@ -351,12 +361,22 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.load(&code[..], None);
 
-        cpu.step();
-        cpu.step();
-        cpu.step();
+        cpu.step_n(3);
 
         assert_eq!(true, cpu.flags.decimal);
         assert_eq!(0x05, cpu.registers.A);
         assert_eq!(true, cpu.flags.carry);
+    }
+
+    #[test]
+    fn sta_can_store_bytes_in_memory() {
+        let code = vec![0xA9, 0x20, 0x8D, 0x00, 0x20];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(2);
+
+        assert_eq!(0x20, cpu.registers.A);
+        assert_eq!(0x20, cpu.memory[0x2000]);
     }
 }
