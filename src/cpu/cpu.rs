@@ -1,8 +1,8 @@
 use ::opcodes::OpCode;
 
-use emulator::cpu_error::CpuError;
-use emulator::memory_bus::MemoryBus;
-use emulator::registers::Registers;
+use cpu::cpu_error::CpuError;
+use cpu::memory_bus::MemoryBus;
+use cpu::registers::Registers;
 
 const DEFAULT_CODE_SEGMENT_START_ADDRESS: u16 = 0xC000;  // Default to a 16KB ROM, leaving 32KB of main memory
 
@@ -56,7 +56,7 @@ impl Cpu {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use emulator::cpu_error::CpuError;
+    use cpu::cpu_error::CpuError;
 
     #[test]
     fn can_instantiate_cpu() {

@@ -2,7 +2,7 @@ extern crate byteorder;
 
 mod assembler;
 mod disassembler;
-mod emulator;
+mod cpu;
 mod opcodes;
 
 pub use assembler::Assembler;
