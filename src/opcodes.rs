@@ -3,7 +3,6 @@ pub enum AddressingMode {
     Unknown,
     Implied,
     Immediate,
-    Indirect,
     Relative,
     Accumulator,
     ZeroPage,
@@ -12,6 +11,7 @@ pub enum AddressingMode {
     Absolute,
     AbsoluteX,
     AbsoluteY,
+    Indirect,
     IndirectX,
     IndirectY,
 }
