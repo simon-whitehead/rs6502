@@ -81,6 +81,7 @@ impl Cpu {
             match opcode.mnemonic {
                 "ADC" => self.adc(),
                 "AND" => self.and(&operand),
+                "ASL" => self.asl(&operand),
                 "CLD" => self.set_decimal_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
@@ -197,6 +198,30 @@ impl Cpu {
 
         self.flags.zero = result == 0;
         self.flags.sign = result > 127;
+    }
+
+    fn asl(&mut self, operand: &Operand) {
+        let mut value = if let &Operand::Implied = operand {
+            // Implied ASL uses the A register
+            self.registers.A
+        } else {
+            self.unwrap_immediate(&operand)
+        };
+
+        // Test the seventh bit - if its set, shift it
+        // into the carry flag
+        self.flags.carry = (value & 0x80) == 0x80;
+
+        // Shift the value left
+        value = value << 0x01;
+        self.flags.sign = value > 127;
+
+        if let &Operand::Implied = operand {
+            self.registers.A = value;
+        } else {
+            let addr = self.unwrap_address(&operand);
+            self.write_byte(addr, value);
+        }
     }
 
     fn lda(&mut self, operand: &Operand) {
@@ -406,14 +431,26 @@ mod tests {
 
     #[test]
     fn and_can_apply_logical_and_operation_and_set_sign_flag() {
-        // Load 255 into A and mask it against 0xF0
-        let code = vec![0xA9, 0xFF, 0x29, 0xF0];
+        // Load 2 into the A register and shift it left
+        let code = vec![0xA9, 0x02, 0x0A];
         let mut cpu = Cpu::new();
         cpu.load(&code[..], None);
 
         cpu.step_n(2);
 
-        assert_eq!(0xF0, cpu.registers.A);
-        assert_eq!(true, cpu.flags.sign);
+        assert_eq!(0x04, cpu.registers.A);
+        assert_eq!(false, cpu.flags.sign);
+    }
+
+    #[test]
+    fn asl_can_shift_bits_left() {
+        let code = vec![0xA9, 0x02, 0x0A];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(2);
+
+        assert_eq!(0x04, cpu.registers.A);
+        assert_eq!(false, cpu.flags.sign);
     }
 }
