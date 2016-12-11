@@ -82,6 +82,7 @@ impl Cpu {
                 "ADC" => self.adc(),
                 "AND" => self.and(&operand),
                 "ASL" => self.asl(&operand),
+                "BCC" => self.bcc(&operand),
                 "CLD" => self.set_decimal_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
@@ -222,6 +223,23 @@ impl Cpu {
         } else {
             let addr = self.unwrap_address(&operand);
             self.write_byte(addr, value);
+        }
+    }
+
+    fn bcc(&mut self, operand: &Operand) {
+        // Branch if the carry flag is not set
+        if !self.flags.carry {
+            let offset = self.unwrap_immediate(&operand) as i8;
+            // If the sign bit is there, negate the PC by the difference
+            // between 256 and the operand value
+            if offset & 0x80 == 0x80 {
+                self.registers.PC -= 0x100 - offset as u16;
+            } else {
+                println!("Jumping from {:04X} to {:04X}",
+                         self.registers.PC,
+                         self.registers.PC + offset as u16);
+                self.registers.PC += offset as u16;
+            }
         }
     }
 
@@ -465,5 +483,18 @@ mod tests {
 
         assert_eq!(0x00, cpu.registers.A);
         assert_eq!(true, cpu.flags.carry);
+    }
+
+    #[test]
+    fn bcc_can_jump_forward() {
+        let code = vec![0xA9, 0xFE, 0x69, 0x01, 0x90, 0x03, 0xA9, 0x00];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(3);
+
+        assert_eq!(0xFF, cpu.registers.A);
+        assert_eq!(false, cpu.flags.carry);
+        assert_eq!(0xC009, cpu.registers.PC);
     }
 }
