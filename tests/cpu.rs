@@ -291,3 +291,26 @@ fn INTEGRATION_CPU_does_not_branch_on_beq() {
 
     assert_eq!(0xFF, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_CPU_preserves_flags_on_bit() {
+    let asm = "
+        LDA #$0F
+        STA $44
+        LDA #$F0
+        BIT $44
+        BEQ FINISH
+        LDA #$35    ; The branch above will be taken
+    FINISH:         ; because 0x0F & 0xF0 will be 0x00
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(30);
+
+    assert_eq!(0xF0, cpu.registers.A);
+}
