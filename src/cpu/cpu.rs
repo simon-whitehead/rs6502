@@ -89,6 +89,7 @@ impl Cpu {
                 "BCC" => self.bcc(&operand),
                 "BCS" => self.bcs(&operand),
                 "BEQ" => self.beq(&operand),
+                "BIT" => self.bit(&operand),
                 "CLD" => self.set_decimal_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
@@ -254,6 +255,16 @@ impl Cpu {
             let offset = self.unwrap_immediate(&operand);
             self.relative_jump(offset);
         }
+    }
+
+    fn bit(&mut self, operand: &Operand) {
+        let a = self.registers.A;
+        let value = self.unwrap_immediate(&operand);
+        let result = value & a;
+
+        self.flags.zero = result == 0x00;
+        self.flags.sign = value & 0x80 == 0x80;
+        self.flags.overflow = value & 0x40 == 0x40;
     }
 
     fn lda(&mut self, operand: &Operand) {
@@ -553,5 +564,31 @@ mod tests {
         cpu.step_n(10);
 
         assert_eq!(0x00, cpu.registers.A);
+    }
+
+    #[test]
+    fn bit_can_set_flags_and_preserve_registers() {
+        let code = vec![0xA9, 0xF0, 0x24, 0x00];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(10);
+
+        assert_eq!(true, cpu.flags.zero);
+        assert_eq!(0xF0, cpu.registers.A);  // Preserves A
+    }
+
+    #[test]
+    fn bit_can_set_overflow_flag() {
+        let code = vec![0xA9, 0xF0, 0x85, 0x44, 0x24, 0x44];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(10);
+
+        assert_eq!(false, cpu.flags.zero);
+        assert_eq!(true, cpu.flags.overflow);
+        assert_eq!(true, cpu.flags.sign);
+        assert_eq!(0xF0, cpu.registers.A);  // Preserves A
     }
 }
