@@ -270,3 +270,24 @@ fn INTEGRATION_CPU_can_branch_on_beq() {
 
     assert_eq!(0x00, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_CPU_does_not_branch_on_beq() {
+    let asm = "
+        LDA #$F0
+        ADC #$01
+        BEQ FINISH
+        LDA #$FF    ; The branch above should not be taken
+    FINISH:         ; and this should load 0xFF into A
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(30);
+
+    assert_eq!(0xFF, cpu.registers.A);
+}
