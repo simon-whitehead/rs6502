@@ -90,6 +90,7 @@ impl Cpu {
                 "BCS" => self.bcs(&operand),
                 "BEQ" => self.beq(&operand),
                 "BIT" => self.bit(&operand),
+                "BMI" => self.bmi(&operand),
                 "CLD" => self.set_decimal_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
@@ -265,6 +266,14 @@ impl Cpu {
         self.flags.zero = result == 0x00;
         self.flags.sign = value & 0x80 == 0x80;
         self.flags.overflow = value & 0x40 == 0x40;
+    }
+
+    fn bmi(&mut self, operand: &Operand) {
+        // Branch if the sign flag is set
+        if self.flags.sign {
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
+        }
     }
 
     fn lda(&mut self, operand: &Operand) {
@@ -590,5 +599,17 @@ mod tests {
         assert_eq!(true, cpu.flags.overflow);
         assert_eq!(true, cpu.flags.sign);
         assert_eq!(0xF0, cpu.registers.A);  // Preserves A
+    }
+
+    #[test]
+    fn bmi_can_jump_forward() {
+        let code = vec![0xA9, 0x7F, 0x69, 0x01, 0x30, 0x03, 0xA9, 0x00];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(10);
+
+        assert_eq!(0x80, cpu.registers.A);
+        assert_eq!(true, cpu.flags.sign);
     }
 }

@@ -314,3 +314,25 @@ fn INTEGRATION_CPU_preserves_flags_on_bit() {
 
     assert_eq!(0xF0, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_CPU_bmi_branches_on_sign_bit_set() {
+    let asm = "
+        LDA #$7F
+        ADC #1
+        BMI FINISH
+        LDA #$00    ; The branch above will be taken
+    FINISH:         ; because the sign flag is set
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(30);
+
+    assert_eq!(0x80, cpu.registers.A);
+    assert_eq!(true, cpu.flags.sign);
+}
