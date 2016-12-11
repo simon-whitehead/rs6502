@@ -228,3 +228,24 @@ fn INTEGRATION_CPU_can_loop_on_bcc() {
 
     assert_eq!(0xFF, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_CPU_can_branch_on_bcs() {
+    let asm = "
+        LDA #$FE
+        ADC #$05    ; This will carry
+        BCS FINISH
+        LDA #$00
+    FINISH:
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(30);
+
+    assert_eq!(0x03, cpu.registers.A);
+}

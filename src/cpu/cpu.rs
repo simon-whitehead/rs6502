@@ -86,6 +86,7 @@ impl Cpu {
                 "AND" => self.and(&operand),
                 "ASL" => self.asl(&operand),
                 "BCC" => self.bcc(&operand),
+                "BCS" => self.bcs(&operand),
                 "CLD" => self.set_decimal_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
@@ -232,6 +233,14 @@ impl Cpu {
     fn bcc(&mut self, operand: &Operand) {
         // Branch if the carry flag is not set
         if !self.flags.carry {
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
+        }
+    }
+
+    fn bcs(&mut self, operand: &Operand) {
+        // Branch if the carry flag is set
+        if self.flags.carry {
             let offset = self.unwrap_immediate(&operand);
             self.relative_jump(offset);
         }
