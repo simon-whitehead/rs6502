@@ -522,4 +522,16 @@ mod tests {
 
         assert_eq!(0x00, cpu.registers.A);
     }
+
+    #[test]
+    fn bcs_can_jump_forward() {
+        let code = vec![0xA9, 0xFF, 0x69, 0x01, 0xB0, 0x03, 0xA9, 0xAA];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(5);
+
+        assert_eq!(0xAA, cpu.registers.A);
+        assert_eq!(true, cpu.flags.carry);
+    }
 }
