@@ -196,6 +196,7 @@ impl Cpu {
         self.registers.A = result;
 
         self.flags.zero = result == 0;
+        self.flags.sign = result > 127;
     }
 
     fn lda(&mut self, operand: &Operand) {
@@ -400,5 +401,19 @@ mod tests {
         cpu.step_n(2);
 
         assert_eq!(0x0F, cpu.registers.A);
+        assert_eq!(false, cpu.flags.sign);
+    }
+
+    #[test]
+    fn and_can_apply_logical_and_operation_and_set_sign_flag() {
+        // Load 255 into A and mask it against 0xF0
+        let code = vec![0xA9, 0xFF, 0x29, 0xF0];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(2);
+
+        assert_eq!(0xF0, cpu.registers.A);
+        assert_eq!(true, cpu.flags.sign);
     }
 }
