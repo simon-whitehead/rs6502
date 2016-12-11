@@ -233,13 +233,7 @@ impl Cpu {
         // Branch if the carry flag is not set
         if !self.flags.carry {
             let offset = self.unwrap_immediate(&operand);
-            // If the sign bit is there, negate the PC by the difference
-            // between 256 and the operand value
-            if offset & 0x80 == 0x80 {
-                self.registers.PC -= 0x100 - offset as u16;
-            } else {
-                self.registers.PC += offset as u16;
-            }
+            self.relative_jump(offset);
         }
     }
 
@@ -254,6 +248,16 @@ impl Cpu {
         let value = self.registers.A;
 
         self.write_byte(addr, value);
+    }
+
+    fn relative_jump(&mut self, offset: u8) {
+        // If the sign bit is there, negate the PC by the difference
+        // between 256 and the offset
+        if offset & 0x80 == 0x80 {
+            self.registers.PC -= 0x100 - offset as u16;
+        } else {
+            self.registers.PC += offset as u16;
+        }
     }
 
     fn set_decimal_flag(&mut self, value: bool) {
