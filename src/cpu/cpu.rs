@@ -543,4 +543,15 @@ mod tests {
         assert_eq!(0x00, cpu.registers.A);
         assert_eq!(true, cpu.flags.carry);
     }
+
+    #[test]
+    fn beq_can_jump_forward() {
+        let code = vec![0xA9, 0xF0, 0x69, 0x10, 0xF0, 0x03, 0xA9, 0xAA];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(10);
+
+        assert_eq!(0x00, cpu.registers.A);
+    }
 }
