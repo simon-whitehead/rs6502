@@ -215,6 +215,7 @@ impl Cpu {
         // Shift the value left
         value = value << 0x01;
         self.flags.sign = value > 127;
+        self.flags.zero = value == 0;
 
         if let &Operand::Implied = operand {
             self.registers.A = value;
@@ -452,5 +453,17 @@ mod tests {
 
         assert_eq!(0x04, cpu.registers.A);
         assert_eq!(false, cpu.flags.sign);
+    }
+
+    #[test]
+    fn asl_shifts_last_bit_into_carry() {
+        let code = vec![0xA9, 0x80, 0x0A];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(2);
+
+        assert_eq!(0x00, cpu.registers.A);
+        assert_eq!(true, cpu.flags.carry);
     }
 }
