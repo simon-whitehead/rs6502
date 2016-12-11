@@ -452,9 +452,9 @@ mod tests {
 
         cpu.step_n(3);
 
+        assert_eq!(true, cpu.flags.carry);
         assert_eq!(true, cpu.flags.decimal);
         assert_eq!(0x05, cpu.registers.A);
-        assert_eq!(true, cpu.flags.carry);
     }
 
     #[test]
