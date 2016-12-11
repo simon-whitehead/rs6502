@@ -117,3 +117,26 @@ fn INTEGRATION_CPU_can_load_byte_into_memory_and_logical_AND_it_with_A_register(
 
     assert_eq!(0x0F, cpu.memory[0x2000]);
 }
+
+#[test]
+fn INTEGRATION_CPU_can_load_byte_into_memory_and_logical_AND_it_with_A_register_using_a_variable
+    () {
+    let asm = "
+        MEMORY_LOCATION = $2000
+
+        LDA #$0F
+        STA MEMORY_LOCATION     ; Load the mask 0x0F into $2000
+        LDA #$FF                ; Load 0xFF into A
+        AND MEMORY_LOCATION     ; AND it with 0x0F
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(4);
+
+    assert_eq!(0x0F, cpu.memory[0x2000]);
+}
