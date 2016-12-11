@@ -140,3 +140,71 @@ fn INTEGRATION_CPU_can_load_byte_into_memory_and_logical_AND_it_with_A_register_
 
     assert_eq!(0x0F, cpu.memory[0x2000]);
 }
+
+#[test]
+fn INTEGRATION_CPU_does_not_branch_on_clear_carry_flag() {
+    let asm = "
+        LDA #$FE
+        ADC #1      ; This won't cause a carry
+        BCC FINISH
+        LDA #$00    ; Clear the A register
+    FINISH:
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(3);
+
+    assert_eq!(0xFF, cpu.registers.A);
+}
+
+#[test]
+fn INTEGRATION_CPU_can_branch_on_carry_flag() {
+    let asm = "
+        LDA #$FE
+        ADC #10     ; This will cause a carry
+        BCC FINISH
+        LDA #$00    ; Clear the A register
+    FINISH:
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(4);
+
+    assert_eq!(0x00, cpu.registers.A);
+}
+
+#[test]
+fn INTEGRATION_CPU_can_branch_on_carry_flag_to_correct_offset() {
+    let asm = "
+        LDA #$FE
+        ADC #1      ; This will not cause a carry, and execution
+        BCC FINISH  ; should jump to the FINISH label
+        LDA #$00
+        LDA #$01
+        LDA #$02
+        LDA #$03
+        LDA #$04
+    FINISH:
+        LDA #$AA
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(5);
+
+    assert_eq!(0xAA, cpu.registers.A);
+}

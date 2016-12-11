@@ -65,6 +65,9 @@ impl Cpu {
     /// Runs N instructions of code through the Cpu
     pub fn step_n(&mut self, n: u32) -> CpuStepResult {
         for i in 0..n {
+            if i > u16::max_value() as u32 {
+                break;
+            }
             self.step()?;
         }
 
