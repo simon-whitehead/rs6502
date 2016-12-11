@@ -64,11 +64,12 @@ impl Cpu {
 
     /// Runs N instructions of code through the Cpu
     pub fn step_n(&mut self, n: u32) -> CpuStepResult {
-        for i in 0..n {
-            if i > self.memory.len() as u32 - 1 {
+        for _ in 0..n {
+            if self.registers.PC < (self.memory.len() - 1) as u16 {
+                self.step()?;
+            } else {
                 break;
             }
-            self.step()?;
         }
 
         Ok(())
@@ -509,5 +510,16 @@ mod tests {
         assert_eq!(0xFF, cpu.registers.A);
         assert_eq!(false, cpu.flags.carry);
         assert_eq!(0xC009, cpu.registers.PC);
+    }
+
+    #[test]
+    fn bcc_can_jump_backward() {
+        let code = vec![0xA9, 0xF0, 0x69, 0x01, 0x90, 0xFC];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(50);
+
+        assert_eq!(0x00, cpu.registers.A);
     }
 }
