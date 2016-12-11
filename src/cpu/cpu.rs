@@ -88,6 +88,7 @@ impl Cpu {
                 "ASL" => self.asl(&operand),
                 "BCC" => self.bcc(&operand),
                 "BCS" => self.bcs(&operand),
+                "BEQ" => self.beq(&operand),
                 "CLD" => self.set_decimal_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
@@ -188,8 +189,8 @@ impl Cpu {
             self.flags.carry = result > 0xFF;
         }
 
-        self.flags.zero = result == 0;
-        self.flags.sign = result > 127;
+        self.flags.zero = result as u8 & 0xFF == 0;
+        self.flags.sign = result & 0x80 == 0x80;
         self.flags.overflow = ((self.registers.A as u16 ^ result) & (value ^ result) & 0x80) ==
                               0x80;
 
@@ -202,8 +203,8 @@ impl Cpu {
 
         self.registers.A = result;
 
-        self.flags.zero = result == 0;
-        self.flags.sign = result > 127;
+        self.flags.zero = result as u8 & 0xFF == 0;
+        self.flags.sign = result & 0x80 == 0x80;
     }
 
     fn asl(&mut self, operand: &Operand) {
@@ -220,8 +221,8 @@ impl Cpu {
 
         // Shift the value left
         value = value << 0x01;
-        self.flags.sign = value > 127;
-        self.flags.zero = value == 0;
+        self.flags.sign = value & 0x80 == 0x80;
+        self.flags.zero = value as u8 & 0xFF == 0;
 
         if let &Operand::Implied = operand {
             self.registers.A = value;
@@ -242,6 +243,14 @@ impl Cpu {
     fn bcs(&mut self, operand: &Operand) {
         // Branch if the carry flag is set
         if self.flags.carry {
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
+        }
+    }
+
+    fn beq(&mut self, operand: &Operand) {
+        // Branch if the zero flag is set
+        if self.flags.zero {
             let offset = self.unwrap_immediate(&operand);
             self.relative_jump(offset);
         }
@@ -529,9 +538,9 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.load(&code[..], None);
 
-        cpu.step_n(5);
+        cpu.step_n(10);
 
-        assert_eq!(0xAA, cpu.registers.A);
+        assert_eq!(0x00, cpu.registers.A);
         assert_eq!(true, cpu.flags.carry);
     }
 }

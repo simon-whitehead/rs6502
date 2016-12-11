@@ -249,3 +249,24 @@ fn INTEGRATION_CPU_can_branch_on_bcs() {
 
     assert_eq!(0x03, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_CPU_can_branch_on_beq() {
+    let asm = "
+        LDA #$FF
+        ADC #$01    ; This will result in a zero result
+        BEQ FINISH
+        LDA #$FF
+    FINISH:
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(30);
+
+    assert_eq!(0x00, cpu.registers.A);
+}
