@@ -208,3 +208,23 @@ fn INTEGRATION_CPU_can_branch_on_carry_flag_to_correct_offset() {
 
     assert_eq!(0xAA, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_CPU_can_loop_on_bcc() {
+    let asm = "
+        LDA #$F0
+    ADDER:
+        ADC #1
+        BCC ADDER
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(30);
+
+    assert_eq!(0xFF, cpu.registers.A);
+}

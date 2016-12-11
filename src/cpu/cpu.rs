@@ -232,15 +232,12 @@ impl Cpu {
     fn bcc(&mut self, operand: &Operand) {
         // Branch if the carry flag is not set
         if !self.flags.carry {
-            let offset = self.unwrap_immediate(&operand) as i8;
+            let offset = self.unwrap_immediate(&operand);
             // If the sign bit is there, negate the PC by the difference
             // between 256 and the operand value
             if offset & 0x80 == 0x80 {
                 self.registers.PC -= 0x100 - offset as u16;
             } else {
-                println!("Jumping from {:04X} to {:04X}",
-                         self.registers.PC,
-                         self.registers.PC + offset as u16);
                 self.registers.PC += offset as u16;
             }
         }
