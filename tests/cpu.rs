@@ -336,3 +336,24 @@ fn INTEGRATION_CPU_bmi_branches_on_sign_bit_set() {
     assert_eq!(0x80, cpu.registers.A);
     assert_eq!(true, cpu.flags.sign);
 }
+
+#[test]
+fn INTEGRATION_CPU_bne_branches_on_zero_clear() {
+    let asm = "
+        LDA #$F0
+    MAIN:
+        ADC #1
+        BNE MAIN
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(50);
+
+    assert_eq!(0x00, cpu.registers.A);
+    assert_eq!(true, cpu.flags.zero);
+}

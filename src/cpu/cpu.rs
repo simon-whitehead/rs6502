@@ -91,6 +91,7 @@ impl Cpu {
                 "BEQ" => self.beq(&operand),
                 "BIT" => self.bit(&operand),
                 "BMI" => self.bmi(&operand),
+                "BNE" => self.bne(&operand),
                 "CLD" => self.set_decimal_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
@@ -271,6 +272,14 @@ impl Cpu {
     fn bmi(&mut self, operand: &Operand) {
         // Branch if the sign flag is set
         if self.flags.sign {
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
+        }
+    }
+
+    fn bne(&mut self, operand: &Operand) {
+        // Branch if the zero flag is not set
+        if !self.flags.zero {
             let offset = self.unwrap_immediate(&operand);
             self.relative_jump(offset);
         }
@@ -611,5 +620,29 @@ mod tests {
 
         assert_eq!(0x80, cpu.registers.A);
         assert_eq!(true, cpu.flags.sign);
+    }
+
+    #[test]
+    fn bne_jumps_on_non_zero() {
+        let code = vec![0xA9, 0xFE, 0x69, 0x01, 0xD0, 0x03, 0xA9, 0xAA];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(10);
+
+        assert_eq!(0xFF, cpu.registers.A);
+        assert_eq!(false, cpu.flags.zero);
+    }
+
+    #[test]
+    fn bne_does_not_jump_on_zero() {
+        let code = vec![0xA9, 0xFF, 0x69, 0x01, 0xD0, 0x03, 0xA9, 0xAA];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(10);
+
+        assert_eq!(0xAA, cpu.registers.A);
+        assert_eq!(true, cpu.flags.zero);
     }
 }
