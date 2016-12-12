@@ -92,6 +92,7 @@ impl Cpu {
                 "BIT" => self.bit(&operand),
                 "BMI" => self.bmi(&operand),
                 "BNE" => self.bne(&operand),
+                "BPL" => self.bpl(&operand),
                 "CLD" => self.set_decimal_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
@@ -285,10 +286,20 @@ impl Cpu {
         }
     }
 
+    fn bpl(&mut self, operand: &Operand) {
+        // Branch if the sign flag is not set
+        if !self.flags.sign {
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
+        }
+    }
+
     fn lda(&mut self, operand: &Operand) {
         let value = self.unwrap_immediate(&operand);
 
         self.registers.A = value;
+        self.flags.sign = value & 0x80 == 0x80;
+        self.flags.zero = value as u8 & 0xFF == 0x00;
     }
 
     fn sta(&mut self, operand: &Operand) {
@@ -644,5 +655,29 @@ mod tests {
 
         assert_eq!(0xAA, cpu.registers.A);
         assert_eq!(true, cpu.flags.zero);
+    }
+
+    #[test]
+    fn bpl_does_not_jump_on_sign_set() {
+        let code = vec![0xA9, 0xFE, 0x10, 0x03, 0xA9, 0xF3];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(10);
+
+        assert_eq!(0xF3, cpu.registers.A);
+        assert_eq!(true, cpu.flags.sign);
+    }
+
+    #[test]
+    fn bpl_does_jump_on_sign_not_set() {
+        let code = vec![0xA9, 0x0E, 0x10, 0x03, 0xA9, 0xF3];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(10);
+
+        assert_eq!(0x0E, cpu.registers.A);
+        assert_eq!(false, cpu.flags.sign);
     }
 }

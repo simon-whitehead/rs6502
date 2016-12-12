@@ -357,3 +357,45 @@ fn INTEGRATION_CPU_bne_branches_on_zero_clear() {
     assert_eq!(0x00, cpu.registers.A);
     assert_eq!(true, cpu.flags.zero);
 }
+
+#[test]
+fn INTEGRATION_CPU_bpl_branches_on_sign_clear() {
+    let asm = "
+        LDA #$0A
+        BPL END
+        LDA #$FF
+    END:
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(50);
+
+    assert_eq!(0x0A, cpu.registers.A);
+    assert_eq!(false, cpu.flags.sign);
+}
+
+#[test]
+fn INTEGRATION_CPU_bpl_does_not_branch_on_sign_set() {
+    let asm = "
+        LDA #$F0
+        BPL END
+        LDA #$FF
+    END:
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(50);
+
+    assert_eq!(0xFF, cpu.registers.A);
+    assert_eq!(true, cpu.flags.sign);
+}
