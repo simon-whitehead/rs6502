@@ -1,6 +1,6 @@
 use byteorder::{ByteOrder, LittleEndian};
 
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 /// Default, 64kb memory bus
 pub struct MemoryBus {
@@ -34,5 +34,11 @@ impl Deref for MemoryBus {
 
     fn deref(&self) -> &Self::Target {
         &self.ram
+    }
+}
+
+impl DerefMut for MemoryBus {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.ram
     }
 }

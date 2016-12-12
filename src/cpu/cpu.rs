@@ -4,8 +4,12 @@ use cpu::cpu_error::CpuError;
 use cpu::flags::StatusFlags;
 use cpu::memory_bus::MemoryBus;
 use cpu::registers::Registers;
+use cpu::stack::Stack;
 
 const DEFAULT_CODE_SEGMENT_START_ADDRESS: u16 = 0xC000;  // Default to a 16KB ROM, leaving 32KB of main memory
+
+const STACK_START: usize = 0x100;
+const STACK_END: usize = 0x1FF;
 
 pub enum Operand {
     Immediate(u8),
@@ -18,6 +22,7 @@ pub struct Cpu {
     pub memory: MemoryBus,
     pub registers: Registers,
     pub flags: StatusFlags,
+    pub stack: Stack,
 }
 
 pub type CpuLoadResult = Result<(), CpuError>;
@@ -30,6 +35,7 @@ impl Cpu {
             memory: MemoryBus::new(),
             registers: Registers::new(),
             flags: Default::default(),
+            stack: Stack::new(),
         }
     }
 
@@ -93,6 +99,7 @@ impl Cpu {
                 "BMI" => self.bmi(&operand),
                 "BNE" => self.bne(&operand),
                 "BPL" => self.bpl(&operand),
+                "BRK" => self.brk(),
                 "CLD" => self.set_decimal_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
@@ -193,7 +200,7 @@ impl Cpu {
             self.flags.carry = result > 0xFF;
         }
 
-        self.flags.zero = result as u8 & 0xFF == 0;
+        self.flags.zero = result as u8 & 0xFF == 0x00;
         self.flags.sign = result & 0x80 == 0x80;
         self.flags.overflow = ((self.registers.A as u16 ^ result) & (value ^ result) & 0x80) ==
                               0x80;
@@ -294,12 +301,18 @@ impl Cpu {
         }
     }
 
+    fn brk(&mut self) {
+        // Store the return address
+        let mut mem = &mut self.memory;
+        self.stack.push_u16(&mut mem[STACK_START..STACK_END], self.registers.PC + 0x01);
+    }
+
     fn lda(&mut self, operand: &Operand) {
         let value = self.unwrap_immediate(&operand);
 
         self.registers.A = value;
         self.flags.sign = value & 0x80 == 0x80;
-        self.flags.zero = value as u8 & 0xFF == 0x00;
+        self.flags.zero = value & 0xFF == 0x00;
     }
 
     fn sta(&mut self, operand: &Operand) {
@@ -654,7 +667,6 @@ mod tests {
         cpu.step_n(10);
 
         assert_eq!(0xAA, cpu.registers.A);
-        assert_eq!(true, cpu.flags.zero);
     }
 
     #[test]

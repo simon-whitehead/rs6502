@@ -4,6 +4,7 @@ mod cpu_error;
 mod flags;
 mod memory_bus;
 mod registers;
+mod stack;
 
 pub use self::cpu::Cpu;
 pub use self::cpu_error::CpuError;
