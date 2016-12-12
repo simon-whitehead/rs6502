@@ -71,7 +71,7 @@ impl Cpu {
     /// Runs N instructions of code through the Cpu
     pub fn step_n(&mut self, n: u32) -> CpuStepResult {
         for _ in 0..n {
-            if self.registers.PC < (self.memory.len() - 1) as u16 {
+            if self.registers.PC <= (self.memory.len() - 1) as u16 {
                 self.step()?;
             } else {
                 break;
@@ -302,9 +302,17 @@ impl Cpu {
     }
 
     fn brk(&mut self) {
-        // Store the return address
-        let mut mem = &mut self.memory;
-        self.stack.push_u16(&mut mem[STACK_START..STACK_END], self.registers.PC + 0x01);
+        self.flags.interrupt_disabled = true;
+        self.flags.breakpoint = true;
+
+        {
+            let mut mem = &mut self.memory[STACK_START..STACK_END];
+
+            // Return address is BRK + 0x02, but we do + 0x01 here
+            // because after the cpu step we add another 0x01
+            self.stack.push_u16(mem, self.registers.PC + 0x01);
+            self.stack.push(mem, self.flags.to_u8());
+        }
     }
 
     fn lda(&mut self, operand: &Operand) {
