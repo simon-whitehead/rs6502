@@ -305,14 +305,12 @@ impl Cpu {
         self.flags.interrupt_disabled = true;
         self.flags.breakpoint = true;
 
-        {
-            let mut mem = &mut self.memory[STACK_START..STACK_END];
+        let mut mem = &mut self.memory[STACK_START..STACK_END];
 
-            // Return address is BRK + 0x02, but we do + 0x01 here
-            // because after the cpu step we add another 0x01
-            self.stack.push_u16(mem, self.registers.PC + 0x01);
-            self.stack.push(mem, self.flags.to_u8());
-        }
+        // Return address is BRK + 0x02, but we do + 0x01 here
+        // because after the cpu step we add another 0x01
+        self.stack.push_u16(mem, self.registers.PC + 0x01);
+        self.stack.push(mem, self.flags.to_u8());
     }
 
     fn lda(&mut self, operand: &Operand) {
@@ -699,5 +697,17 @@ mod tests {
 
         assert_eq!(0x0E, cpu.registers.A);
         assert_eq!(false, cpu.flags.sign);
+    }
+
+    #[test]
+    fn brk_does_store_pc_and_status_flags_on_stack() {
+        let code = vec![0xA9, 0x0E, 0x00];
+        let mut cpu = Cpu::new();
+        cpu.load(&code[..], None);
+
+        cpu.step_n(10);
+
+        assert_eq!(0xC0, cpu.memory[0x1FE]);
+        assert_eq!(0x03, cpu.memory[0x1FD]);
     }
 }
