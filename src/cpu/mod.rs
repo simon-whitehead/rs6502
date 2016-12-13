@@ -6,7 +6,7 @@ mod memory_bus;
 mod registers;
 mod stack;
 
-pub use self::cpu::Cpu;
+pub use self::cpu::{Cpu, CpuStepResult};
 pub use self::cpu_error::CpuError;
 pub use self::flags::StatusFlags;
 pub use self::memory_bus::MemoryBus;

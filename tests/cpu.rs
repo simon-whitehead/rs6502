@@ -1,401 +1,348 @@
-
 extern crate rs6502;
 
+use rs6502::*;
+
 #[test]
-fn INTEGRATION_CPU_can_add_basic_numbers_in_accumulator() {
-    let asm = "
-        LDA #$20
-        ADC #$10    ; A register should equal 48
-    ";
+fn can_instantiate_cpu() {
+    let cpu = Cpu::new();
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
-
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(2);
-
-    assert_eq!(0x30, cpu.registers.A);
+    assert!(0 == 0);
 }
 
 #[test]
-fn INTEGRATION_CPU_can_add_binary_coded_decimal_numbers_in_accumulator() {
-    let asm = "
-        SED
-        LDA #$20
-        ADC #$05    ; A register should equal 0x25
-    ";
+fn can_load_code_segment_into_memory() {
+    let fake_code = vec![0x0A, 0x0B, 0x0C, 0x0D];
+    let mut cpu = Cpu::new();
+    cpu.load(&fake_code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
+    let memory_sum: u32 = cpu.memory.iter().map(|n| *n as u32).sum();
+    assert_eq!(46, memory_sum);
+}
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
+#[test]
+fn can_load_code_segment_at_default_address() {
+    let fake_code = vec![0x0A, 0x0B, 0x0C, 0x0D];
+    let mut cpu = Cpu::new();
+    cpu.load(&fake_code[..], None);
+
+    assert_eq!(0x0D, cpu.memory.read_byte(0xC003));
+    assert_eq!(0x0C, cpu.memory.read_byte(0xC002));
+    assert_eq!(0x0B, cpu.memory.read_byte(0xC001));
+    assert_eq!(0x0A, cpu.memory.read_byte(0xC000));
+}
+
+#[test]
+fn can_load_code_segment_at_specific_address() {
+    let fake_code = vec![0x0A, 0x0B, 0x0C, 0x0D];
+    let mut cpu = Cpu::new();
+    cpu.load(&fake_code[..], 0xF000);
+
+    assert_eq!(0x0D, cpu.memory.read_byte(0xF003));
+    assert_eq!(0x0C, cpu.memory.read_byte(0xF002));
+    assert_eq!(0x0B, cpu.memory.read_byte(0xF001));
+    assert_eq!(0x0A, cpu.memory.read_byte(0xF000));
+}
+
+#[test]
+fn errors_when_code_segment_extends_past_memory_bounds() {
+    let fake_code = vec![0x0A, 0x0B, 0x0C, 0x0D];
+    let mut cpu = Cpu::new();
+    let load_result = cpu.load(&fake_code[..], 0xFFFD);
+
+    assert_eq!(Err(CpuError::code_segment_out_of_range(0xFFFD)),
+               load_result);
+}
+
+#[test]
+fn errors_on_unknown_opcode() {
+    let fake_code = vec![0xC3];
+    let mut cpu = Cpu::new();
+    cpu.load(&fake_code[..], None);
+    let step_result: CpuStepResult = cpu.step();
+
+    assert_eq!(Err(CpuError::unknown_opcode(0xC000, 0xC3)), step_result);// This is the unofficial DCP (d,X) opcode
+}
+
+#[test]
+fn can_get_operand_from_opcode() {
+    let fake_code = vec![0xC3];
+    let mut cpu = Cpu::new();
+    cpu.load(&fake_code[..], None);
+    let step_result: CpuStepResult = cpu.step();
+}
+
+#[test]
+fn adc_can_set_decimal_flag() {
+    let code = vec![0xF8];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+
+    cpu.step();
+
+    assert_eq!(true, cpu.flags.decimal);
+}
+
+#[test]
+fn adc_can_disable_decimal_flag() {
+    let code = vec![0xD8];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+
+    cpu.step();
+
+    assert_eq!(false, cpu.flags.decimal);
+}
+
+#[test]
+fn adc_can_add_basic_numbers() {
+    let code = vec![0xA9, 0x05, 0x69, 0x03];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+
+    cpu.step_n(2);
+
+    assert_eq!(8, cpu.registers.A);
+}
+
+#[test]
+fn adc_can_add_basic_numbers_set_carry_and_wrap_around() {
+    let code = vec![0xA9, 0xFD, 0x69, 0x05];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+
+    cpu.step_n(2);
+
+    assert_eq!(2, cpu.registers.A);
+    assert_eq!(true, cpu.flags.carry);
+}
+
+#[test]
+fn adc_can_add_numbers_in_binary_coded_decimal() {
+    let code = vec![0xF8, 0xA9, 0x05, 0x69, 0x05];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
     cpu.step_n(3);
 
-    assert_eq!(0x25, cpu.registers.A);
+    assert_eq!(true, cpu.flags.decimal);
+    assert_eq!(0x10, cpu.registers.A);
 }
 
 #[test]
-fn INTEGRATION_CPU_can_add_mixed_mode_numbers_in_accumulator() {
-    let asm = "
-        LDA #$20
-        ADC #10    ; A register should equal 0x2A
-    ";
+fn adc_can_add_numbers_in_binary_coded_decimal_and_set_carry() {
+    let code = vec![0xF8, 0xA9, 0x95, 0x69, 0x10];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
+    cpu.step_n(3);
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
+    assert_eq!(true, cpu.flags.carry);
+    assert_eq!(true, cpu.flags.decimal);
+    assert_eq!(0x05, cpu.registers.A);
+}
+
+#[test]
+fn sta_can_store_bytes_in_memory() {
+    let code = vec![0xA9, 0x20, 0x8D, 0x00, 0x20];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
     cpu.step_n(2);
 
-    assert_eq!(0x2A, cpu.registers.A);
-}
-
-#[test]
-fn INTEGRATION_CPU_can_store_bytes_in_memory() {
-    let asm = "
-        LDA #$20
-        STA $2000
-        LDA #10
-        STA $2001
-    ";
-
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
-
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(4);
-
-    assert_eq!(0x20, cpu.memory[0x2000]);
-    assert_eq!(0x0A, cpu.memory[0x2001]);
-    assert_eq!(0x00, cpu.memory[0x2002]);
-}
-
-#[test]
-fn INTEGRATION_CPU_can_overwrite_own_memory() {
-    let asm = "
-        LDA #$20
-        STA $C006
-        LDA #10
-        STA $2000
-    ";
-
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
-
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(4);
-
+    assert_eq!(0x20, cpu.registers.A);
     assert_eq!(0x20, cpu.memory[0x2000]);
 }
 
 #[test]
-fn INTEGRATION_CPU_can_load_byte_into_memory_and_logical_AND_it_with_A_register() {
-    let asm = "
-        LDA #$0F
-        STA $2000   ; Load the mask 0x0F into $2000
-        LDA #$FF    ; Load 0xFF into A
-        AND $2000   ; AND it with 0x0F
-    ";
+fn and_can_apply_logical_and_operation() {
+    // Load 255 into A and mask it against 0x0F
+    let code = vec![0xA9, 0xFF, 0x29, 0x0F];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
+    cpu.step_n(2);
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(4);
-
-    assert_eq!(0x0F, cpu.memory[0x2000]);
+    assert_eq!(0x0F, cpu.registers.A);
+    assert_eq!(false, cpu.flags.sign);
 }
 
 #[test]
-fn INTEGRATION_CPU_can_load_byte_into_memory_and_logical_AND_it_with_A_register_using_a_variable
-    () {
-    let asm = "
-        MEMORY_LOCATION = $2000
+fn and_can_apply_logical_and_operation_and_set_sign_flag() {
+    // Load 2 into the A register and shift it left
+    let code = vec![0xA9, 0x02, 0x0A];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-        LDA #$0F
-        STA MEMORY_LOCATION     ; Load the mask 0x0F into $2000
-        LDA #$FF                ; Load 0xFF into A
-        AND MEMORY_LOCATION     ; AND it with 0x0F
-    ";
+    cpu.step_n(2);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
-
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(4);
-
-    assert_eq!(0x0F, cpu.memory[0x2000]);
+    assert_eq!(0x04, cpu.registers.A);
+    assert_eq!(false, cpu.flags.sign);
 }
 
 #[test]
-fn INTEGRATION_CPU_does_not_branch_on_clear_carry_flag() {
-    let asm = "
-        LDA #$FE
-        ADC #1      ; This won't cause a carry
-        BCC FINISH
-        LDA #$00    ; Clear the A register
-    FINISH:
-    ";
+fn asl_can_shift_bits_left() {
+    let code = vec![0xA9, 0x02, 0x0A];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
+    cpu.step_n(2);
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
+    assert_eq!(0x04, cpu.registers.A);
+    assert_eq!(false, cpu.flags.sign);
+}
+
+#[test]
+fn asl_shifts_last_bit_into_carry() {
+    let code = vec![0xA9, 0x80, 0x0A];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+
+    cpu.step_n(2);
+
+    assert_eq!(0x00, cpu.registers.A);
+    assert_eq!(true, cpu.flags.carry);
+}
+
+#[test]
+fn bcc_can_jump_forward() {
+    let code = vec![0xA9, 0xFE, 0x69, 0x01, 0x90, 0x03, 0xA9, 0x00];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
     cpu.step_n(3);
 
     assert_eq!(0xFF, cpu.registers.A);
+    assert_eq!(false, cpu.flags.carry);
+    assert_eq!(0xC009, cpu.registers.PC);
 }
 
 #[test]
-fn INTEGRATION_CPU_can_branch_on_carry_flag() {
-    let asm = "
-        LDA #$FE
-        ADC #10     ; This will cause a carry
-        BCC FINISH
-        LDA #$00    ; Clear the A register
-    FINISH:
-    ";
+fn bcc_can_jump_backward() {
+    let code = vec![0xA9, 0xF0, 0x69, 0x01, 0x90, 0xFC];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
-
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(4);
+    cpu.step_n(50);
 
     assert_eq!(0x00, cpu.registers.A);
 }
 
 #[test]
-fn INTEGRATION_CPU_can_branch_on_carry_flag_to_correct_offset() {
-    let asm = "
-        LDA #$FE
-        ADC #1      ; This will not cause a carry, and execution
-        BCC FINISH  ; should jump to the FINISH label
-        LDA #$00
-        LDA #$01
-        LDA #$02
-        LDA #$03
-        LDA #$04
-    FINISH:
-        LDA #$AA
-    ";
+fn bcs_can_jump_forward() {
+    let code = vec![0xA9, 0xFF, 0x69, 0x01, 0xB0, 0x03, 0xA9, 0xAA];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
+    cpu.step_n(10);
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(5);
-
-    assert_eq!(0xAA, cpu.registers.A);
+    assert_eq!(0x00, cpu.registers.A);
+    assert_eq!(true, cpu.flags.carry);
 }
 
 #[test]
-fn INTEGRATION_CPU_can_loop_on_bcc() {
-    let asm = "
-        LDA #$F0
-    ADDER:
-        ADC #1
-        BCC ADDER
-    ";
+fn beq_can_jump_forward() {
+    let code = vec![0xA9, 0xF0, 0x69, 0x10, 0xF0, 0x03, 0xA9, 0xAA];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
-
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(30);
-
-    assert_eq!(0xFF, cpu.registers.A);
-}
-
-#[test]
-fn INTEGRATION_CPU_can_branch_on_bcs() {
-    let asm = "
-        LDA #$FE
-        ADC #$05    ; This will carry
-        BCS FINISH
-        LDA #$00
-    FINISH:
-    ";
-
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
-
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(30);
-
-    assert_eq!(0x03, cpu.registers.A);
-}
-
-#[test]
-fn INTEGRATION_CPU_can_branch_on_beq() {
-    let asm = "
-        LDA #$FF
-        ADC #$01    ; This will result in a zero result
-        BEQ FINISH
-        LDA #$FF
-    FINISH:
-    ";
-
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
-
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(30);
+    cpu.step_n(10);
 
     assert_eq!(0x00, cpu.registers.A);
 }
 
 #[test]
-fn INTEGRATION_CPU_does_not_branch_on_beq() {
-    let asm = "
-        LDA #$F0
-        ADC #$01
-        BEQ FINISH
-        LDA #$FF    ; The branch above should not be taken
-    FINISH:         ; and this should load 0xFF into A
-    ";
+fn bit_can_set_flags_and_preserve_registers() {
+    let code = vec![0xA9, 0xF0, 0x24, 0x00];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
+    cpu.step_n(10);
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(30);
-
-    assert_eq!(0xFF, cpu.registers.A);
+    assert_eq!(true, cpu.flags.zero);
+    assert_eq!(0xF0, cpu.registers.A);  // Preserves A
 }
 
 #[test]
-fn INTEGRATION_CPU_preserves_flags_on_bit() {
-    let asm = "
-        LDA #$0F
-        STA $44
-        LDA #$F0
-        BIT $44
-        BEQ FINISH
-        LDA #$35    ; The branch above will be taken
-    FINISH:         ; because 0x0F & 0xF0 will be 0x00
-    ";
+fn bit_can_set_overflow_flag() {
+    let code = vec![0xA9, 0xF0, 0x85, 0x44, 0x24, 0x44];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
+    cpu.step_n(10);
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(30);
-
-    assert_eq!(0xF0, cpu.registers.A);
+    assert_eq!(false, cpu.flags.zero);
+    assert_eq!(true, cpu.flags.overflow);
+    assert_eq!(true, cpu.flags.sign);
+    assert_eq!(0xF0, cpu.registers.A);  // Preserves A
 }
 
 #[test]
-fn INTEGRATION_CPU_bmi_branches_on_sign_bit_set() {
-    let asm = "
-        LDA #$7F
-        ADC #1
-        BMI FINISH
-        LDA #$00    ; The branch above will be taken
-    FINISH:         ; because the sign flag is set
-    ";
+fn bmi_can_jump_forward() {
+    let code = vec![0xA9, 0x7F, 0x69, 0x01, 0x30, 0x03, 0xA9, 0x00];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
-
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(30);
+    cpu.step_n(10);
 
     assert_eq!(0x80, cpu.registers.A);
     assert_eq!(true, cpu.flags.sign);
 }
 
 #[test]
-fn INTEGRATION_CPU_bne_branches_on_zero_clear() {
-    let asm = "
-        LDA #$F0
-    MAIN:
-        ADC #1
-        BNE MAIN
-    ";
+fn bne_jumps_on_non_zero() {
+    let code = vec![0xA9, 0xFE, 0x69, 0x01, 0xD0, 0x03, 0xA9, 0xAA];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
+    cpu.step_n(10);
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(50);
-
-    assert_eq!(0x00, cpu.registers.A);
-    assert_eq!(true, cpu.flags.zero);
+    assert_eq!(0xFF, cpu.registers.A);
+    assert_eq!(false, cpu.flags.zero);
 }
 
 #[test]
-fn INTEGRATION_CPU_bpl_branches_on_sign_clear() {
-    let asm = "
-        LDA #$0A
-        BPL END
-        LDA #$FF
-    END:
-    ";
+fn bne_does_not_jump_on_zero() {
+    let code = vec![0xA9, 0xFF, 0x69, 0x01, 0xD0, 0x03, 0xA9, 0xAA];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
+    cpu.step_n(10);
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
+    assert_eq!(0xAA, cpu.registers.A);
+}
 
-    cpu.step_n(50);
+#[test]
+fn bpl_does_not_jump_on_sign_set() {
+    let code = vec![0xA9, 0xFE, 0x10, 0x03, 0xA9, 0xF3];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    assert_eq!(0x0A, cpu.registers.A);
+    cpu.step_n(10);
+
+    assert_eq!(0xF3, cpu.registers.A);
+    assert_eq!(true, cpu.flags.sign);
+}
+
+#[test]
+fn bpl_does_jump_on_sign_not_set() {
+    let code = vec![0xA9, 0x0E, 0x10, 0x03, 0xA9, 0xF3];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+
+    cpu.step_n(10);
+
+    assert_eq!(0x0E, cpu.registers.A);
     assert_eq!(false, cpu.flags.sign);
 }
 
 #[test]
-fn INTEGRATION_CPU_bpl_does_not_branch_on_sign_set() {
-    let asm = "
-        LDA #$F0
-        BPL END
-        LDA #$FF
-    END:
-    ";
+fn brk_does_store_pc_and_status_flags_on_stack() {
+    let code = vec![0xA9, 0x0E, 0x00];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
 
-    let mut cpu = rs6502::Cpu::new();
-    let mut assembler = rs6502::Assembler::new();
+    cpu.step_n(10);
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
-    cpu.load(&bytecode[..], None);
-
-    cpu.step_n(50);
-
-    assert_eq!(0xFF, cpu.registers.A);
-    assert_eq!(true, cpu.flags.sign);
+    assert_eq!(0xC0, cpu.memory[0x1FE]);
+    assert_eq!(0x03, cpu.memory[0x1FD]);
 }
