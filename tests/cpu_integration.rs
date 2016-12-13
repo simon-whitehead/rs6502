@@ -399,3 +399,75 @@ fn INTEGRATION_CPU_bpl_does_not_branch_on_sign_set() {
     assert_eq!(0xFF, cpu.registers.A);
     assert_eq!(true, cpu.flags.sign);
 }
+
+#[test]
+fn INTEGRATION_CPU_cmp_does_branch_on_accumulator_less_than_memory_bcc() {
+    let asm = "
+        LDA #$0F
+        CMP #$FF
+        BCC LESS
+        LDA #$02
+        JMP END
+    LESS:
+        LDA #$01
+    END
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(50);
+
+    assert_eq!(0x01, cpu.registers.A);
+}
+
+#[test]
+fn INTEGRATION_CPU_cmp_does_branch_on_accumulator_greater_than_memory_bcs() {
+    let asm = "
+        LDA #$FF
+        CMP #$FE
+        BCS MORE
+        LDA #$01
+        JMP END
+    MORE:
+        LDA #$02
+    END
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(50);
+
+    assert_eq!(0x02, cpu.registers.A);
+}
+
+#[test]
+fn INTEGRATION_CPU_cmp_does_branch_on_accumulator_less_than_equal_to_bcc() {
+    let asm = "
+        LDA #$FF
+        CMP #$FF
+        BCS EQUAL
+        LDA #$01
+        JMP END
+    EQUAL:
+        LDA #$03
+    END
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(50);
+
+    assert_eq!(0x03, cpu.registers.A);
+}

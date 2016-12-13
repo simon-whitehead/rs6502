@@ -185,9 +185,10 @@ impl Cpu {
         // and also here:
         // http://stackoverflow.com/questions/29193303/6502-emulation-proper-way-to-implement-adc-and-sbc
 
-        let original_overflow = self.registers.A & 0x80 == 0x80;
         let carry = if self.flags.carry { 1 } else { 0 };
         let value = self.read_byte(self.registers.PC + 1) as u16;
+
+        let value_signs = self.registers.A & 0x80 == 0x80 && value & 0x80 == 0x80;
 
         // Do normal binary arithmetic first
         let mut result = self.registers.A as u16 + value as u16 + carry as u16;
@@ -210,7 +211,7 @@ impl Cpu {
         self.flags.zero = result as u8 & 0xFF == 0x00;
         self.flags.sign = result & 0x80 == 0x80;
 
-        if self.flags.sign != original_overflow {
+        if self.flags.sign != value_signs {
             self.flags.overflow = true;
         }
 
@@ -357,7 +358,13 @@ impl Cpu {
         let value = self.unwrap_immediate(&operand);
         let result: i16 = self.registers.A as i16 - value as i16;
 
-        self.flags.carry = result >= 0;
+        self.flags.carry = (result as u16) < 0x100;
+        println!("A: {}, value: {}, result: {:08X}, result < 0x100: {}",
+                 self.registers.A,
+                 value,
+                 result,
+                 (result as u16) < 0x100);
+        println!("Carry: {}", self.flags.carry);
         self.flags.zero = result & 0xFF == 0x00;
         self.flags.sign = result & 0x80 == 0x80;
     }
