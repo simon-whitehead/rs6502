@@ -541,5 +541,27 @@ mod tests {
 
             assert_eq!(0x54, cpu.memory[0x85]);
         }
+
+        #[test]
+        fn dex_decrements() {
+            let code = vec![0xA2, 0x55, 0xCA];
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+
+            cpu.step_n(10);
+
+            assert_eq!(0x54, cpu.registers.X);
+        }
+
+        #[test]
+        fn dey_decrements() {
+            let code = vec![0xA0, 0x55, 0x88];
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+
+            cpu.step_n(10);
+
+            assert_eq!(0x54, cpu.registers.Y);
+        }
     }
 }
