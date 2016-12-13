@@ -181,6 +181,7 @@ impl Cpu {
         // and also here:
         // http://stackoverflow.com/questions/29193303/6502-emulation-proper-way-to-implement-adc-and-sbc
 
+        let original_overflow = self.registers.A & 0x80 == 0x80;
         let carry = if self.flags.carry { 1 } else { 0 };
         let value = self.read_byte(self.registers.PC + 1) as u16;
 
@@ -204,8 +205,10 @@ impl Cpu {
 
         self.flags.zero = result as u8 & 0xFF == 0x00;
         self.flags.sign = result & 0x80 == 0x80;
-        self.flags.overflow = ((self.registers.A as u16 ^ result) & (value ^ result) & 0x80) ==
-                              0x80;
+
+        if self.flags.sign != original_overflow {
+            self.flags.overflow = true;
+        }
 
         self.registers.A = result as u8 & 0xFF;
     }
@@ -270,13 +273,16 @@ impl Cpu {
     }
 
     fn bit(&mut self, operand: &Operand) {
+        let original_overflow = self.registers.A & 0x80 == 0x80;
         let a = self.registers.A;
         let value = self.unwrap_immediate(&operand);
         let result = value & a;
 
         self.flags.zero = result == 0x00;
         self.flags.sign = value & 0x80 == 0x80;
-        self.flags.overflow = value & 0x40 == 0x40;
+        if self.flags.sign != original_overflow {
+            self.flags.overflow = true;
+        }
     }
 
     fn bmi(&mut self, operand: &Operand) {

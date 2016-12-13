@@ -346,3 +346,27 @@ fn brk_does_store_pc_and_status_flags_on_stack() {
     assert_eq!(0xC0, cpu.memory[0x1FE]);
     assert_eq!(0x03, cpu.memory[0x1FD]);
 }
+
+#[test]
+fn bvc_does_not_jump_on_overflow_set() {
+    let code = vec![0xA9, 0x7F, 0x69, 0x01, 0x50, 0x03, 0xA9, 0xFF];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+
+    cpu.step_n(10);
+
+    assert_eq!(0xFF, cpu.registers.A);
+    assert_eq!(true, cpu.flags.overflow);
+}
+
+#[test]
+fn bvc_does_jump_on_overflow_clear() {
+    let code = vec![0xA9, 0x7E, 0x69, 0x01, 0x50, 0x03, 0xA9, 0xFF];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+
+    cpu.step_n(10);
+
+    assert_eq!(0x7F, cpu.registers.A);
+    assert_eq!(false, cpu.flags.overflow);
+}
