@@ -442,3 +442,39 @@ fn clv_clears_overflow_flag() {
 
     assert_eq!(false, cpu.flags.overflow);
 }
+
+#[test]
+fn cmp_sets_zero_flag() {
+    let code = vec![0xA9, 0x55, 0xC9, 0x55];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+    cpu.flags.zero = false;
+
+    cpu.step_n(2);
+
+    assert_eq!(true, cpu.flags.zero);
+}
+
+#[test]
+fn cmp_clears_carry_flag() {
+    let code = vec![0xA9, 0x55, 0xC9, 0x65];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+    cpu.flags.carry = true;
+
+    cpu.step_n(2);
+
+    assert_eq!(false, cpu.flags.carry);
+}
+
+#[test]
+fn cmp_sets_carry_flag() {
+    let code = vec![0xA9, 0x65, 0xC9, 0x55];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+    cpu.flags.carry = false;
+
+    cpu.step_n(2);
+
+    assert_eq!(true, cpu.flags.carry);
+}

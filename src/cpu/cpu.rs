@@ -106,6 +106,7 @@ impl Cpu {
                 "CLD" => self.set_decimal_flag(false),
                 "CLI" => self.set_interrupt_flag(false),
                 "CLV" => self.set_overflow_flag(false),
+                "CMP" => self.cmp(&operand),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
                 "STA" => self.sta(&operand),
@@ -350,6 +351,15 @@ impl Cpu {
 
     fn set_overflow_flag(&mut self, value: bool) {
         self.flags.overflow = value;
+    }
+
+    fn cmp(&mut self, operand: &Operand) {
+        let value = self.unwrap_immediate(&operand);
+        let result: i16 = self.registers.A as i16 - value as i16;
+
+        self.flags.carry = result >= 0;
+        self.flags.zero = result & 0xFF == 0x00;
+        self.flags.sign = result & 0x80 == 0x80;
     }
 
     fn lda(&mut self, operand: &Operand) {
