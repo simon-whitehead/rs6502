@@ -400,8 +400,8 @@ impl Cpu {
     fn dey(&mut self) {
         self.registers.Y -= 0x01;
 
-        self.flags.sign = self.registers.X & 0x80 == 0x80;
-        self.flags.zero = self.registers.X & 0xFF == 0x00;
+        self.flags.sign = self.registers.Y & 0x80 == 0x80;
+        self.flags.zero = self.registers.Y & 0xFF == 0x00;
     }
 
     fn lda(&mut self, operand: &Operand) {
