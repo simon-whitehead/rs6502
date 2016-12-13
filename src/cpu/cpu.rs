@@ -106,8 +106,21 @@ impl Cpu {
                 "CLD" => self.set_decimal_flag(false),
                 "CLI" => self.set_interrupt_flag(false),
                 "CLV" => self.set_overflow_flag(false),
-                "CMP" => self.cmp(&operand),
+                "CMP" => {
+                    let a = self.registers.A;
+                    self.compare(&operand, a)
+                }
+                "CPX" => {
+                    let x = self.registers.X;
+                    self.compare(&operand, x)
+                }
+                "CPY" => {
+                    let y = self.registers.Y;
+                    self.compare(&operand, y)
+                }
                 "LDA" => self.lda(&operand),
+                "LDX" => self.ldx(&operand),
+                "LDY" => self.ldy(&operand),
                 "SED" => self.set_decimal_flag(true),
                 "STA" => self.sta(&operand),
                 _ => return Err(CpuError::unknown_opcode(self.registers.PC, opcode.code)),
@@ -354,9 +367,9 @@ impl Cpu {
         self.flags.overflow = value;
     }
 
-    fn cmp(&mut self, operand: &Operand) {
+    fn compare(&mut self, operand: &Operand, byte: u8) {
         let value = self.unwrap_immediate(&operand);
-        let result: i16 = self.registers.A as i16 - value as i16;
+        let result: i16 = byte as i16 - value as i16;
 
         self.flags.carry = (result as u16) < 0x100;
         self.flags.zero = result & 0xFF == 0x00;
@@ -367,6 +380,22 @@ impl Cpu {
         let value = self.unwrap_immediate(&operand);
 
         self.registers.A = value;
+        self.flags.sign = value & 0x80 == 0x80;
+        self.flags.zero = value & 0xFF == 0x00;
+    }
+
+    fn ldx(&mut self, operand: &Operand) {
+        let value = self.unwrap_immediate(&operand);
+
+        self.registers.X = value;
+        self.flags.sign = value & 0x80 == 0x80;
+        self.flags.zero = value & 0xFF == 0x00;
+    }
+
+    fn ldy(&mut self, operand: &Operand) {
+        let value = self.unwrap_immediate(&operand);
+
+        self.registers.Y = value;
         self.flags.sign = value & 0x80 == 0x80;
         self.flags.zero = value & 0xFF == 0x00;
     }

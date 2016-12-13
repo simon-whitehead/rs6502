@@ -478,3 +478,51 @@ fn cmp_sets_carry_flag() {
 
     assert_eq!(true, cpu.flags.carry);
 }
+
+#[test]
+fn cpx_clears_carry_flag() {
+    let code = vec![0xA2, 0x55, 0xE0, 0x65];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+    cpu.flags.carry = true;
+
+    cpu.step_n(2);
+
+    assert_eq!(false, cpu.flags.carry);
+}
+
+#[test]
+fn cpx_sets_carry_flag() {
+    let code = vec![0xA2, 0x65, 0xE0, 0x55];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+    cpu.flags.carry = false;
+
+    cpu.step_n(2);
+
+    assert_eq!(true, cpu.flags.carry);
+}
+
+#[test]
+fn cpy_clears_carry_flag() {
+    let code = vec![0xA0, 0x55, 0xC0, 0x65];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+    cpu.flags.carry = true;
+
+    cpu.step_n(2);
+
+    assert_eq!(false, cpu.flags.carry);
+}
+
+#[test]
+fn cpy_sets_carry_flag() {
+    let code = vec![0xA0, 0x65, 0xC0, 0x55];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+    cpu.flags.carry = false;
+
+    cpu.step_n(2);
+
+    assert_eq!(true, cpu.flags.carry);
+}
