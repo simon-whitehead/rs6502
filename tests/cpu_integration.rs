@@ -471,3 +471,22 @@ fn INTEGRATION_CPU_cmp_does_branch_on_accumulator_less_than_equal_to_bcc() {
 
     assert_eq!(0x03, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_CPU_dec_decrements() {
+    let asm = "
+        LDA #$FF
+        STA $0100
+        DEC $0100
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(3);
+
+    assert_eq!(0xFE, cpu.memory[0x100]);
+}

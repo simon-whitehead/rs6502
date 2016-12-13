@@ -118,6 +118,7 @@ impl Cpu {
                     let y = self.registers.Y;
                     self.compare(&operand, y)
                 }
+                "DEC" => self.dec(&operand),
                 "LDA" => self.lda(&operand),
                 "LDX" => self.ldx(&operand),
                 "LDY" => self.ldy(&operand),
@@ -374,6 +375,17 @@ impl Cpu {
         self.flags.carry = (result as u16) < 0x100;
         self.flags.zero = result & 0xFF == 0x00;
         self.flags.sign = result & 0x80 == 0x80;
+    }
+
+    fn dec(&mut self, operand: &Operand) {
+        let value = self.unwrap_immediate(&operand);
+        let addr = self.unwrap_address(&operand);
+        let result = value - 1;
+
+        self.write_byte(addr, result);
+
+        self.flags.sign = result & 0x80 == 0x80;
+        self.flags.zero = result & 0xFF == 0x00;
     }
 
     fn lda(&mut self, operand: &Operand) {

@@ -530,5 +530,16 @@ mod tests {
 
             assert_eq!(true, cpu.flags.carry);
         }
+
+        #[test]
+        fn dec_decrements() {
+            let code = vec![0xA9, 0x55, 0x85, 0x85, 0xC6, 0x85];
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+
+            cpu.step_n(10);
+
+            assert_eq!(0x54, cpu.memory[0x85]);
+        }
     }
 }
