@@ -394,3 +394,15 @@ fn bvs_does_jump_on_overflow_set() {
     assert_eq!(0x80, cpu.registers.A);
     assert_eq!(true, cpu.flags.overflow);
 }
+
+#[test]
+fn clc_clears_carry_flag() {
+    let code = vec![0x18];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+    cpu.flags.carry = true;
+
+    cpu.step_n(1);
+
+    assert_eq!(false, cpu.flags.carry);
+}

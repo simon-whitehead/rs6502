@@ -102,6 +102,7 @@ impl Cpu {
                 "BRK" => self.brk(),
                 "BVC" => self.bvc(&operand),
                 "BVS" => self.bvs(&operand),
+                "CLC" => self.clc(),
                 "CLD" => self.set_decimal_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
@@ -334,6 +335,10 @@ impl Cpu {
             let offset = self.unwrap_immediate(&operand);
             self.relative_jump(offset);
         }
+    }
+
+    fn clc(&mut self) {
+        self.flags.carry = false;
     }
 
     fn lda(&mut self, operand: &Operand) {
