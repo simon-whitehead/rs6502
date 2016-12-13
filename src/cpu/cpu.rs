@@ -359,12 +359,6 @@ impl Cpu {
         let result: i16 = self.registers.A as i16 - value as i16;
 
         self.flags.carry = (result as u16) < 0x100;
-        println!("A: {}, value: {}, result: {:08X}, result < 0x100: {}",
-                 self.registers.A,
-                 value,
-                 result,
-                 (result as u16) < 0x100);
-        println!("Carry: {}", self.flags.carry);
         self.flags.zero = result & 0xFF == 0x00;
         self.flags.sign = result & 0x80 == 0x80;
     }
