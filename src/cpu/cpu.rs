@@ -102,8 +102,10 @@ impl Cpu {
                 "BRK" => self.brk(),
                 "BVC" => self.bvc(&operand),
                 "BVS" => self.bvs(&operand),
-                "CLC" => self.clc(),
+                "CLC" => self.set_carry_flag(false),
                 "CLD" => self.set_decimal_flag(false),
+                "CLI" => self.set_interrupt_flag(false),
+                "CLV" => self.set_overflow_flag(false),
                 "LDA" => self.lda(&operand),
                 "SED" => self.set_decimal_flag(true),
                 "STA" => self.sta(&operand),
@@ -274,16 +276,13 @@ impl Cpu {
     }
 
     fn bit(&mut self, operand: &Operand) {
-        let original_overflow = self.registers.A & 0x80 == 0x80;
         let a = self.registers.A;
         let value = self.unwrap_immediate(&operand);
         let result = value & a;
 
         self.flags.zero = result == 0x00;
+        self.flags.overflow = value & 0x40 == 0x40; // "The V flag and the N flag receive copies of the sixth and seventh bits of the tested number"
         self.flags.sign = value & 0x80 == 0x80;
-        if self.flags.sign != original_overflow {
-            self.flags.overflow = true;
-        }
     }
 
     fn bmi(&mut self, operand: &Operand) {
@@ -337,8 +336,20 @@ impl Cpu {
         }
     }
 
-    fn clc(&mut self) {
-        self.flags.carry = false;
+    fn set_carry_flag(&mut self, value: bool) {
+        self.flags.carry = value;
+    }
+
+    fn set_decimal_flag(&mut self, value: bool) {
+        self.flags.decimal = value;
+    }
+
+    fn set_interrupt_flag(&mut self, value: bool) {
+        self.flags.interrupt_disabled = value;
+    }
+
+    fn set_overflow_flag(&mut self, value: bool) {
+        self.flags.overflow = value;
     }
 
     fn lda(&mut self, operand: &Operand) {
@@ -364,10 +375,6 @@ impl Cpu {
         } else {
             self.registers.PC += offset as u16;
         }
-    }
-
-    fn set_decimal_flag(&mut self, value: bool) {
-        self.flags.decimal = value;
     }
 
     /// Convenience wrapper for accessing a byte

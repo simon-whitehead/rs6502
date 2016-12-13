@@ -402,7 +402,43 @@ fn clc_clears_carry_flag() {
     cpu.load(&code[..], None);
     cpu.flags.carry = true;
 
-    cpu.step_n(1);
+    cpu.step();
 
     assert_eq!(false, cpu.flags.carry);
+}
+
+#[test]
+fn cld_clears_decimal_flag() {
+    let code = vec![0xD8];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+    cpu.flags.decimal = true;
+
+    cpu.step();
+
+    assert_eq!(false, cpu.flags.decimal);
+}
+
+#[test]
+fn cli_clears_interrupt_flag() {
+    let code = vec![0x58];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+    cpu.flags.interrupt_disabled = true;
+
+    cpu.step();
+
+    assert_eq!(false, cpu.flags.interrupt_disabled);
+}
+
+#[test]
+fn clv_clears_overflow_flag() {
+    let code = vec![0xB8];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+    cpu.flags.overflow = true;
+
+    cpu.step();
+
+    assert_eq!(false, cpu.flags.overflow);
 }
