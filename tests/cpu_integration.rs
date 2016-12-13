@@ -490,3 +490,26 @@ fn INTEGRATION_CPU_dec_decrements() {
 
     assert_eq!(0xFE, cpu.memory[0x100]);
 }
+
+#[test]
+fn INTEGRATION_CPU_dex_decrements() {
+    let asm = "
+        LDX #$05
+        LDA #$FF
+        STA $0100
+    LOOP:
+        DEC $0100
+        DEX
+        BNE LOOP
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(20);
+
+    assert_eq!(0xFA, cpu.memory[0x100]);
+}

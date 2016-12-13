@@ -119,6 +119,8 @@ impl Cpu {
                     self.compare(&operand, y)
                 }
                 "DEC" => self.dec(&operand),
+                "DEX" => self.dex(),
+                "DEY" => self.dey(),
                 "LDA" => self.lda(&operand),
                 "LDX" => self.ldx(&operand),
                 "LDY" => self.ldy(&operand),
@@ -386,6 +388,20 @@ impl Cpu {
 
         self.flags.sign = result & 0x80 == 0x80;
         self.flags.zero = result & 0xFF == 0x00;
+    }
+
+    fn dex(&mut self) {
+        self.registers.X -= 0x01;
+
+        self.flags.sign = self.registers.X & 0x80 == 0x80;
+        self.flags.zero = self.registers.X & 0xFF == 0x00;
+    }
+
+    fn dey(&mut self) {
+        self.registers.Y -= 0x01;
+
+        self.flags.sign = self.registers.X & 0x80 == 0x80;
+        self.flags.zero = self.registers.X & 0xFF == 0x00;
     }
 
     fn lda(&mut self, operand: &Operand) {
