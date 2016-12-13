@@ -370,3 +370,27 @@ fn bvc_does_jump_on_overflow_clear() {
     assert_eq!(0x7F, cpu.registers.A);
     assert_eq!(false, cpu.flags.overflow);
 }
+
+#[test]
+fn bvs_does_not_jump_on_overflow_clear() {
+    let code = vec![0xA9, 0x7E, 0x69, 0x01, 0x70, 0x03, 0xA9, 0xFF];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+
+    cpu.step_n(10);
+
+    assert_eq!(0xFF, cpu.registers.A);
+    assert_eq!(false, cpu.flags.overflow);
+}
+
+#[test]
+fn bvs_does_jump_on_overflow_set() {
+    let code = vec![0xA9, 0x7F, 0x69, 0x01, 0x70, 0x03, 0xA9, 0xFF];
+    let mut cpu = Cpu::new();
+    cpu.load(&code[..], None);
+
+    cpu.step_n(10);
+
+    assert_eq!(0x80, cpu.registers.A);
+    assert_eq!(true, cpu.flags.overflow);
+}
