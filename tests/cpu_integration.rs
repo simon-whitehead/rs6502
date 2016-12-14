@@ -608,3 +608,27 @@ fn INTEGRATION_CPU_ora_ors_against_accumulator() {
 
     assert_eq!(0xFF, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_CPU_pha_pla() {
+    let asm = "
+        LDA #$55
+        PHA
+        LDA #$FF
+        PLA
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(3);
+
+    assert_eq!(0xFF, cpu.registers.A);
+
+    cpu.step();
+
+    assert_eq!(0x55, cpu.registers.A);
+}

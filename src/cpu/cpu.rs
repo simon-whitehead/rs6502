@@ -143,6 +143,10 @@ impl Cpu {
                 "LSR" => self.lsr(&operand),
                 "NOP" => self.nop(),
                 "ORA" => self.ora(&operand),
+                "PHA" => self.pha(),
+                "PHP" => self.php(),
+                "PLA" => self.pla(),
+                "PLP" => self.plp(),
                 "RTS" => self.rts(),
                 "SED" => self.set_decimal_flag(true),
                 "STA" => self.sta(&operand),
@@ -527,6 +531,34 @@ impl Cpu {
         self.flags.zero = result & 0xFF == 0x00;
 
         self.registers.A = result;
+    }
+
+    fn pha(&mut self) {
+        let mut mem = &mut self.memory[STACK_START..STACK_END];
+
+        self.stack.push(mem, self.registers.A);
+    }
+
+    fn php(&mut self) {
+        let mut mem = &mut self.memory[STACK_START..STACK_END];
+
+        self.stack.push(mem, self.flags.to_u8());
+    }
+
+    fn pla(&mut self) {
+        let mut mem = &mut self.memory[STACK_START..STACK_END];
+
+        let value = self.stack.pop(mem).unwrap();
+
+        self.registers.A = value;
+    }
+
+    fn plp(&mut self) {
+        let mut mem = &mut self.memory[STACK_START..STACK_END];
+
+        let value = self.stack.pop(mem).unwrap();
+
+        self.flags = value.into();
     }
 
     fn rts(&mut self) {
