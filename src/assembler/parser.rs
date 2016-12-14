@@ -182,7 +182,11 @@ impl Parser {
         // a matching opcode with an implied addressing mode
         if let None = peeker.peek() {
             if let Some(opcode) =
-                   OpCode::from_mnemonic_and_addressing_mode(ident, AddressingMode::Implied) {
+                   OpCode::from_mnemonic_and_addressing_mode(ident.clone(), AddressingMode::Implied) {
+                return Ok(vec![ParserToken::OpCode(opcode)]);
+            } else if let Some(opcode) =
+                          OpCode::from_mnemonic_and_addressing_mode(ident.clone(),
+                                                                    AddressingMode::Accumulator) {
                 return Ok(vec![ParserToken::OpCode(opcode)]);
             } else {
                 return Err(ParserError::invalid_opcode_addressing_mode_combination(self.line));

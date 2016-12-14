@@ -534,11 +534,33 @@ fn INTEGRATION_CPU_jsr_rts_combination_works() {
 
     let bytecode = assembler.assemble_string(asm).unwrap();
     cpu.load(&bytecode[..], None);
-    for b in &bytecode {
-        println!("{:02X}", *b);
-    }
 
     cpu.step_n(20);
 
     assert_eq!(0x0A, cpu.registers.A);
+}
+
+#[test]
+fn INTEGRATION_CPU_lsr_can_halve_a_number() {
+    let asm = "
+        ; Halve the value at $1000
+        LDA #$56
+        STA $1000
+        LSR $1000
+
+        ; Halve the value in the Accumulator
+        LDA #$40
+        LSR
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(20);
+
+    assert_eq!(0x20, cpu.registers.A);
+    assert_eq!(0x2B, cpu.memory[0x1000]);
 }

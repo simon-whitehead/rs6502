@@ -140,6 +140,7 @@ impl Cpu {
                 "LDA" => self.lda(&operand),
                 "LDX" => self.ldx(&operand),
                 "LDY" => self.ldy(&operand),
+                "LSR" => self.lsr(&operand),
                 "RTS" => self.rts(),
                 "SED" => self.set_decimal_flag(true),
                 "STA" => self.sta(&operand),
@@ -487,6 +488,29 @@ impl Cpu {
         self.registers.Y = value;
         self.flags.sign = value & 0x80 == 0x80;
         self.flags.zero = value & 0xFF == 0x00;
+    }
+
+    fn lsr(&mut self, operand: &Operand) {
+        // Accumulator is the implied register here
+        let value = if let &Operand::Implied = operand {
+            self.registers.A
+        } else {
+            self.unwrap_immediate(&operand)
+        };
+
+        self.flags.carry = value & 0x01 == 0x01;
+
+        let value = value >> 0x01;
+
+        self.flags.sign = value & 0x80 == 0x80;
+        self.flags.zero = value & 0xFF == 0x00;
+
+        if let &Operand::Implied = operand {
+            self.registers.A = value;
+        } else {
+            let addr = self.unwrap_address(&operand);
+            self.memory.write_byte(addr, value);
+        }
     }
 
     fn rts(&mut self) {
