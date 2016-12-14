@@ -94,25 +94,23 @@ impl Cpu {
 
         if let Some(opcode) = OpCode::from_raw_byte(byte) {
             let operand = self.get_operand_from_opcode(&opcode);
-            let value = self.unwrap_immediate(&operand);
-            let addr = self.unwrap_address(&operand);
 
             self.registers.PC += opcode.length as u16;
 
             match opcode.mnemonic {
-                "ADC" => self.adc(value),
-                "AND" => self.and(value),
+                "ADC" => self.adc(&operand),
+                "AND" => self.and(&operand),
                 "ASL" => self.asl(&operand),
-                "BCC" => self.bcc(value),
-                "BCS" => self.bcs(value),
-                "BEQ" => self.beq(value),
-                "BIT" => self.bit(value),
-                "BMI" => self.bmi(value),
-                "BNE" => self.bne(value),
-                "BPL" => self.bpl(value),
+                "BCC" => self.bcc(&operand),
+                "BCS" => self.bcs(&operand),
+                "BEQ" => self.beq(&operand),
+                "BIT" => self.bit(&operand),
+                "BMI" => self.bmi(&operand),
+                "BNE" => self.bne(&operand),
+                "BPL" => self.bpl(&operand),
                 "BRK" => self.brk(),
-                "BVC" => self.bvc(value),
-                "BVS" => self.bvs(value),
+                "BVC" => self.bvc(&operand),
+                "BVS" => self.bvs(&operand),
                 "CLC" => self.set_carry_flag(false),
                 "CLD" => self.set_decimal_flag(false),
                 "CLI" => self.set_interrupt_flag(false),
@@ -205,7 +203,7 @@ impl Cpu {
 
     // ## OpCode handlers ##
 
-    fn adc(&mut self, value: u8) {
+    fn adc(&mut self, operand: &Operand) {
         // This is implemented on the information provided here:
         // http://www.electrical4u.com/bcd-or-binary-coded-decimal-bcd-conversion-addition-subtraction/
         // and here:
@@ -217,7 +215,7 @@ impl Cpu {
 
         let carry = if self.flags.carry { 1 } else { 0 };
 
-        let value = value as u16;
+        let value = self.unwrap_immediate(&operand) as u16;
         let value_signs = self.registers.A & 0x80 == 0x80 && value & 0x80 == 0x80;
 
         // Do normal binary arithmetic first
@@ -248,7 +246,8 @@ impl Cpu {
         self.registers.A = result as u8 & 0xFF;
     }
 
-    fn and(&mut self, value: u8) {
+    fn and(&mut self, operand: &Operand) {
+        let value = self.unwrap_immediate(&operand);
         let result = self.registers.A & value;
 
         self.registers.A = result;
@@ -282,29 +281,33 @@ impl Cpu {
         }
     }
 
-    fn bcc(&mut self, value: u8) {
+    fn bcc(&mut self, operand: &Operand) {
         // Branch if the carry flag is not set
         if !self.flags.carry {
-            self.relative_jump(value);
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
         }
     }
 
-    fn bcs(&mut self, value: u8) {
+    fn bcs(&mut self, operand: &Operand) {
         // Branch if the carry flag is set
         if self.flags.carry {
-            self.relative_jump(value);
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
         }
     }
 
-    fn beq(&mut self, value: u8) {
+    fn beq(&mut self, operand: &Operand) {
         // Branch if the zero flag is set
         if self.flags.zero {
-            self.relative_jump(value);
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
         }
     }
 
-    fn bit(&mut self, value: u8) {
+    fn bit(&mut self, operand: &Operand) {
         let a = self.registers.A;
+        let value = self.unwrap_immediate(&operand);
         let result = value & a;
 
         self.flags.zero = result == 0x00;
@@ -312,24 +315,27 @@ impl Cpu {
         self.flags.sign = value & 0x80 == 0x80;
     }
 
-    fn bmi(&mut self, value: u8) {
+    fn bmi(&mut self, operand: &Operand) {
         // Branch if the sign flag is set
         if self.flags.sign {
-            self.relative_jump(value);
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
         }
     }
 
-    fn bne(&mut self, value: u8) {
+    fn bne(&mut self, operand: &Operand) {
         // Branch if the zero flag is not set
         if !self.flags.zero {
-            self.relative_jump(value);
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
         }
     }
 
-    fn bpl(&mut self, value: u8) {
+    fn bpl(&mut self, operand: &Operand) {
         // Branch if the sign flag is not set
         if !self.flags.sign {
-            self.relative_jump(value);
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
         }
     }
 
@@ -344,17 +350,19 @@ impl Cpu {
         self.flags.interrupt_disabled = true;
     }
 
-    fn bvc(&mut self, value: u8) {
+    fn bvc(&mut self, operand: &Operand) {
         // Branch if the overflow flag is not set
         if !self.flags.overflow {
-            self.relative_jump(value);
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
         }
     }
 
-    fn bvs(&mut self, value: u8) {
+    fn bvs(&mut self, operand: &Operand) {
         // Branch if the overflow flag is set
         if self.flags.overflow {
-            self.relative_jump(value);
+            let offset = self.unwrap_immediate(&operand);
+            self.relative_jump(offset);
         }
     }
 
