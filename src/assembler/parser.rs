@@ -197,7 +197,7 @@ impl Parser {
                 } else {
                     // takes care of this later
                     let ident = ident.clone().into().to_uppercase();
-                    let addressing_mode = if ident == "JMP" {
+                    let addressing_mode = if ident == "JMP" || ident == "JSR" {
                         AddressingMode::Absolute
                     } else {
                         AddressingMode::Relative

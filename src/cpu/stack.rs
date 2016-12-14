@@ -1,3 +1,4 @@
+use byteorder::{ByteOrder, LittleEndian};
 
 #[derive(Debug, PartialEq)]
 pub struct StackError {
@@ -15,7 +16,7 @@ impl StackError {
 }
 
 pub type StackPushResult = Result<(), StackError>;
-pub type StackPopResult = Result<u8, StackError>;
+pub type StackPopResult<T> = Result<T, StackError>;
 
 pub struct Stack {
     pointer: usize,
@@ -39,10 +40,8 @@ impl Stack {
 
     pub fn push_u16(&mut self, stack_area: &mut [u8], val: u16) -> StackPushResult {
         if self.pointer > 0x01 {
-            self.pointer -= 0x01;
-            stack_area[self.pointer] = ((val >> 8) as u8) & 0xFF;
-            self.pointer -= 0x01;
-            stack_area[self.pointer] = (val as u8) & 0xFF;
+            LittleEndian::write_u16(&mut stack_area[self.pointer - 0x02..], val);
+            self.pointer -= 0x02;
 
             Ok(())
         } else {
@@ -50,7 +49,7 @@ impl Stack {
         }
     }
 
-    pub fn pop(&mut self, stack_area: &[u8]) -> StackPopResult {
+    pub fn pop(&mut self, stack_area: &[u8]) -> StackPopResult<u8> {
         if self.pointer == 0xFF {
             Err(StackError::underflow())
         } else {
@@ -58,6 +57,17 @@ impl Stack {
             self.pointer += 0x01;
 
             Ok(val)
+        }
+    }
+
+    pub fn pop_u16(&mut self, stack_area: &mut [u8]) -> StackPopResult<u16> {
+        if self.pointer < 0xFE {
+            let result = LittleEndian::read_u16(&stack_area[self.pointer..]);
+            self.pointer += 0x02;
+
+            Ok(result)
+        } else {
+            Err(StackError::underflow())
         }
     }
 }
@@ -141,5 +151,16 @@ mod tests {
 
         assert_eq!(0x44, stack_area[0xFE]);
         assert_eq!(0x00, stack_area[0xFD]);
+    }
+
+    #[test]
+    fn can_push_then_pop_u16() {
+        let mut stack_area = [0u8; 0xFF];
+        let mut stack = Stack::new();
+
+        stack.push_u16(&mut stack_area, 0x4400);
+        let result = stack.pop_u16(&mut stack_area).unwrap();
+
+        assert_eq!(0x4400, result);
     }
 }

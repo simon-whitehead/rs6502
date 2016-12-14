@@ -513,3 +513,32 @@ fn INTEGRATION_CPU_dex_decrements() {
 
     assert_eq!(0xFA, cpu.memory[0x100]);
 }
+
+#[test]
+fn INTEGRATION_CPU_jsr_rts_combination_works() {
+    let asm = "
+        LDA #$FF
+        LDA #$FE
+        JSR SUBROUTINE
+        LDA #$0A
+        JMP END
+
+    SUBROUTINE:
+        LDA #$AA
+        RTS
+    END:
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+    for b in &bytecode {
+        println!("{:02X}", *b);
+    }
+
+    cpu.step_n(20);
+
+    assert_eq!(0x0A, cpu.registers.A);
+}

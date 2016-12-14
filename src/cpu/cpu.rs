@@ -11,6 +11,7 @@ const DEFAULT_CODE_SEGMENT_START_ADDRESS: u16 = 0xC000;  // Default to a 16KB RO
 const STACK_START: usize = 0x100;
 const STACK_END: usize = 0x1FF;
 
+#[derive(Debug)]
 pub enum Operand {
     Immediate(u8),
     Memory(u16),
@@ -135,9 +136,11 @@ impl Cpu {
                 "INX" => self.inx(),
                 "INY" => self.iny(),
                 "JMP" => self.jmp(&operand),
+                "JSR" => self.jsr(&operand),
                 "LDA" => self.lda(&operand),
                 "LDX" => self.ldx(&operand),
                 "LDY" => self.ldy(&operand),
+                "RTS" => self.rts(),
                 "SED" => self.set_decimal_flag(true),
                 "STA" => self.sta(&operand),
                 _ => return Err(CpuError::unknown_opcode(self.registers.PC, opcode.code)),
@@ -454,6 +457,14 @@ impl Cpu {
         self.registers.PC = value;
     }
 
+    fn jsr(&mut self, operand: &Operand) {
+        let addr = self.unwrap_address(&operand);
+        let mut mem = &mut self.memory[STACK_START..STACK_END];
+
+        self.stack.push_u16(mem, self.registers.PC);
+        self.registers.PC = self.code_start as u16 + addr;
+    }
+
     fn lda(&mut self, operand: &Operand) {
         let value = self.unwrap_immediate(&operand);
 
@@ -476,6 +487,13 @@ impl Cpu {
         self.registers.Y = value;
         self.flags.sign = value & 0x80 == 0x80;
         self.flags.zero = value & 0xFF == 0x00;
+    }
+
+    fn rts(&mut self) {
+        let mut mem = &mut self.memory[STACK_START..STACK_END];
+        let addr = self.stack.pop_u16(mem).unwrap();
+
+        self.registers.PC = addr;
     }
 
     fn sta(&mut self, operand: &Operand) {
