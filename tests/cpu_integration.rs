@@ -632,3 +632,25 @@ fn INTEGRATION_CPU_pha_pla() {
 
     assert_eq!(0x55, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_CPU_rol() {
+    let asm = "
+        ; To explain this: 0xFF + 0x0A will wrap to
+        ; 0x09 + Carry. 0x09 << 1 is 0x12 + 1 for the
+        ; Carry. Therefore, it should equal 0x13.
+        LDA #$FF
+        ADC #$0A
+        ROL
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(3);
+
+    assert_eq!(0x13, cpu.registers.A);
+}

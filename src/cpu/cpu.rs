@@ -147,6 +147,7 @@ impl Cpu {
                 "PHP" => self.php(),
                 "PLA" => self.pla(),
                 "PLP" => self.plp(),
+                "ROL" => self.rol(&operand),
                 "RTS" => self.rts(),
                 "SED" => self.set_decimal_flag(true),
                 "STA" => self.sta(&operand),
@@ -240,12 +241,9 @@ impl Cpu {
             if result > 0x99 {
                 result += 0x60;
             }
-
-            self.flags.carry = (result & 0x100) == 0x100;
-        } else {
-            self.flags.carry = result > 0xFF;
         }
 
+        self.flags.carry = (result & 0x100) == 0x100;
         self.flags.zero = result as u8 & 0xFF == 0x00;
         self.flags.sign = result & 0x80 == 0x80;
 
@@ -566,6 +564,33 @@ impl Cpu {
         let addr = self.stack.pop_u16(mem).unwrap();
 
         self.registers.PC = addr;
+    }
+
+    fn rol(&mut self, operand: &Operand) {
+        let value = if let &Operand::Implied = operand {
+            self.registers.A
+        } else {
+            self.unwrap_immediate(&operand)
+        };
+
+        let carry = value & 0x80 == 0x80;
+
+        let value = if self.flags.carry {
+            (value << 1) | 0x01
+        } else {
+            value << 1
+        };
+
+        self.flags.carry = carry;
+        self.flags.sign = value & 0x80 == 0x80;
+        self.flags.zero = value & 0xFF == 0x00;
+
+        if let &Operand::Implied = operand {
+            self.registers.A = value;
+        } else {
+            let addr = self.unwrap_address(&operand);
+            self.memory.write_byte(addr, value);
+        }
     }
 
     fn sta(&mut self, operand: &Operand) {
