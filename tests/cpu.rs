@@ -607,5 +607,17 @@ mod tests {
 
             assert_eq!(0x56, cpu.registers.Y);
         }
+
+        #[test]
+        fn jmp_jumps() {
+            let code = vec![0xA9, 0x55, 0x4C, 0x07, 0xC0, 0xA9, 0xFF];
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+
+            cpu.step_n(2);
+
+            assert_eq!(0x55, cpu.registers.A);
+            assert_eq!(0xC007, cpu.registers.PC);
+        }
     }
 }
