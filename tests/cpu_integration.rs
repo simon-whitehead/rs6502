@@ -590,3 +590,21 @@ fn INTEGRATION_CPU_lsr_can_halve_a_number() {
     assert_eq!(0x20, cpu.registers.A);
     assert_eq!(0x2B, cpu.memory[0x1000]);
 }
+
+#[test]
+fn INTEGRATION_CPU_ora_ors_against_accumulator() {
+    let asm = "
+        LDA #$E7    ; 1110 0111
+        ORA #$18
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(10);
+
+    assert_eq!(0xFF, cpu.registers.A);
+}

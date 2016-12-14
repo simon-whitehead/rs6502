@@ -142,6 +142,7 @@ impl Cpu {
                 "LDY" => self.ldy(&operand),
                 "LSR" => self.lsr(&operand),
                 "NOP" => self.nop(),
+                "ORA" => self.ora(&operand),
                 "RTS" => self.rts(),
                 "SED" => self.set_decimal_flag(true),
                 "STA" => self.sta(&operand),
@@ -516,6 +517,16 @@ impl Cpu {
 
     fn nop(&self) {
         // Nothing. No Operation.
+    }
+
+    fn ora(&mut self, operand: &Operand) {
+        let value = self.unwrap_immediate(&operand);
+        let result = self.registers.A | value;
+
+        self.flags.sign = result & 0x80 == 0x80;
+        self.flags.zero = result & 0xFF == 0x00;
+
+        self.registers.A = result;
     }
 
     fn rts(&mut self) {
