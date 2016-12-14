@@ -342,9 +342,7 @@ impl Cpu {
     fn brk(&mut self) {
         let mut mem = &mut self.memory[STACK_START..STACK_END];
 
-        // Return address is BRK + 0x02, but we do + 0x01 here
-        // because after the cpu step we add another 0x01
-        self.stack.push_u16(mem, self.registers.PC + 0x01);
+        self.stack.push_u16(mem, self.registers.PC);
         self.stack.push(mem, self.flags.to_u8());
 
         self.flags.interrupt_disabled = true;
