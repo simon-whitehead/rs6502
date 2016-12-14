@@ -148,6 +148,7 @@ impl Cpu {
                 "PLA" => self.pla(),
                 "PLP" => self.plp(),
                 "ROL" => self.rol(&operand),
+                "ROR" => self.ror(&operand),
                 "RTS" => self.rts(),
                 "SED" => self.set_decimal_flag(true),
                 "STA" => self.sta(&operand),
@@ -576,9 +577,35 @@ impl Cpu {
         let carry = value & 0x80 == 0x80;
 
         let value = if self.flags.carry {
-            (value << 1) | 0x01
+            (value << 0x01) | 0x01
         } else {
-            value << 1
+            value << 0x01
+        };
+
+        self.flags.carry = carry;
+        self.flags.sign = value & 0x80 == 0x80;
+        self.flags.zero = value & 0xFF == 0x00;
+
+        if let &Operand::Implied = operand {
+            self.registers.A = value;
+        } else {
+            let addr = self.unwrap_address(&operand);
+            self.memory.write_byte(addr, value);
+        }
+    }
+    fn ror(&mut self, operand: &Operand) {
+        let value = if let &Operand::Implied = operand {
+            self.registers.A
+        } else {
+            self.unwrap_immediate(&operand)
+        };
+
+        let carry = value & 0x01 == 0x01;   // Carry flag is the low bit in a ROR
+
+        let value = if self.flags.carry {
+            (value >> 0x01) | 0x80
+        } else {
+            value >> 0x01
         };
 
         self.flags.carry = carry;
