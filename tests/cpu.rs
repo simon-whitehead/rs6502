@@ -563,5 +563,16 @@ mod tests {
 
             assert_eq!(0x54, cpu.registers.Y);
         }
+
+        #[test]
+        fn eor_xors() {
+            let code = vec![0xA9, 0x00, 0x49, 0x80];
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+
+            cpu.step_n(2);
+
+            assert_eq!(0x80, cpu.registers.A);
+        }
     }
 }

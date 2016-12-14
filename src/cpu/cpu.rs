@@ -121,6 +121,7 @@ impl Cpu {
                 "DEC" => self.dec(&operand),
                 "DEX" => self.dex(),
                 "DEY" => self.dey(),
+                "EOR" => self.eor(&operand),
                 "LDA" => self.lda(&operand),
                 "LDX" => self.ldx(&operand),
                 "LDY" => self.ldy(&operand),
@@ -402,6 +403,16 @@ impl Cpu {
 
         self.flags.sign = self.registers.Y & 0x80 == 0x80;
         self.flags.zero = self.registers.Y & 0xFF == 0x00;
+    }
+
+    fn eor(&mut self, operand: &Operand) {
+        let value = self.unwrap_immediate(&operand);
+        let result = self.registers.A ^ value;
+
+        self.registers.A = result;
+
+        self.flags.sign = result & 0x80 == 0x80;
+        self.flags.zero = result & 0xFF == 0x00;
     }
 
     fn lda(&mut self, operand: &Operand) {
