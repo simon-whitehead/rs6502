@@ -151,6 +151,7 @@ impl Cpu {
                 "ROR" => self.ror(&operand),
                 "RTI" => self.rti(),
                 "RTS" => self.rts(),
+                "SBC" => self.sbc(&operand),
                 "SED" => self.set_decimal_flag(true),
                 "STA" => self.sta(&operand),
                 _ => return Err(CpuError::unknown_opcode(self.registers.PC, opcode.code)),
@@ -626,6 +627,35 @@ impl Cpu {
 
         let value = self.stack.pop(mem).unwrap();
         self.flags = value.into();
+    }
+
+    fn sbc(&mut self, operand: &Operand) {
+        let carry = if self.flags.carry { 0 } else { 1 };
+
+        let value = self.unwrap_immediate(&operand) as u16;
+        let value_signs = self.registers.A & 0x80 == 0x80 && value & 0x80 == 0x80;
+
+        // Do normal binary arithmetic first
+        let mut result = self.registers.A as u16 - value as u16 - carry as u16;
+
+        self.flags.zero = result as u8 & 0xFF == 0x00;
+        self.flags.sign = result & 0x80 == 0x80;
+
+        if self.flags.sign != value_signs {
+            self.flags.overflow = true;
+        }
+
+        if self.flags.decimal {
+            if (((self.registers.A as i16) & 0x0F) - carry as i16) < ((value as i16) & 0x0F) {
+                result -= 0x06;
+            }
+            if (result as u16) > 0x99 {
+                result -= 0x60;
+            }
+        }
+
+        self.flags.carry = (result as u16) < 0x100;
+        self.registers.A = result as u8;
     }
 
     fn sta(&mut self, operand: &Operand) {

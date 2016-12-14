@@ -705,3 +705,40 @@ fn INTEGRATION_CPU_brk_rti() {
     assert_eq!(true, cpu.flags.carry);
     assert_eq!(true, cpu.flags.decimal);
 }
+
+#[test]
+fn INTEGRATION_CPU_sbc() {
+    let asm = "
+        LDA #$FF
+        SBC #$0A
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(2);
+
+    assert_eq!(0xF4, cpu.registers.A);
+}
+
+#[test]
+fn INTEGRATION_CPU_sbc_with_decimal_mode() {
+    let asm = "
+        SED
+        LDA #$35
+        SBC #$19
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    cpu.step_n(3);
+
+    assert_eq!(0x15, cpu.registers.A);
+}
