@@ -574,5 +574,38 @@ mod tests {
 
             assert_eq!(0x80, cpu.registers.A);
         }
+
+        #[test]
+        fn inc_increments() {
+            let code = vec![0xA9, 0x55, 0x85, 0x85, 0xE6, 0x85];
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+
+            cpu.step_n(10);
+
+            assert_eq!(0x56, cpu.memory[0x85]);
+        }
+
+        #[test]
+        fn inx_increments_x() {
+            let code = vec![0xA2, 0x55, 0xE8];
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+
+            cpu.step_n(10);
+
+            assert_eq!(0x56, cpu.registers.X);
+        }
+
+        #[test]
+        fn iny_increments_y() {
+            let code = vec![0xA0, 0x55, 0xC8];
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+
+            cpu.step_n(10);
+
+            assert_eq!(0x56, cpu.registers.Y);
+        }
     }
 }

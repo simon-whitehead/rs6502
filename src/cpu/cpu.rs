@@ -122,6 +122,9 @@ impl Cpu {
                 "DEX" => self.dex(),
                 "DEY" => self.dey(),
                 "EOR" => self.eor(&operand),
+                "INC" => self.inc(&operand),
+                "INX" => self.inx(),
+                "INY" => self.iny(),
                 "LDA" => self.lda(&operand),
                 "LDX" => self.ldx(&operand),
                 "LDY" => self.ldy(&operand),
@@ -413,6 +416,31 @@ impl Cpu {
 
         self.flags.sign = result & 0x80 == 0x80;
         self.flags.zero = result & 0xFF == 0x00;
+    }
+
+    fn inc(&mut self, operand: &Operand) {
+        let value = self.unwrap_immediate(&operand);
+        let addr = self.unwrap_address(&operand);
+        let result = value + 1;
+
+        self.write_byte(addr, result);
+
+        self.flags.sign = result & 0x80 == 0x80;
+        self.flags.zero = result & 0xFF == 0x00;
+    }
+
+    fn inx(&mut self) {
+        self.registers.X += 0x01;
+
+        self.flags.sign = self.registers.X & 0x80 == 0x80;
+        self.flags.zero = self.registers.X & 0xFF == 0x00;
+    }
+
+    fn iny(&mut self) {
+        self.registers.Y += 0x01;
+
+        self.flags.sign = self.registers.Y & 0x80 == 0x80;
+        self.flags.zero = self.registers.Y & 0xFF == 0x00;
     }
 
     fn lda(&mut self, operand: &Operand) {
