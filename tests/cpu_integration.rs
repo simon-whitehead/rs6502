@@ -541,6 +541,32 @@ fn INTEGRATION_CPU_jsr_rts_combination_works() {
 }
 
 #[test]
+fn INTEGRATION_CPU_jsr_rts_combination_works_when_code_segment_loaded_at_weird_address() {
+    let asm = "
+        LDA #$FF
+        LDA #$FE
+        JSR SUBROUTINE
+        LDA #$0A
+        JMP END
+
+    SUBROUTINE:
+        LDA #$AA
+        RTS
+    END:
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], 0xABCD);  // Load it at a weird address
+
+    cpu.step_n(20);
+
+    assert_eq!(0x0A, cpu.registers.A);
+}
+
+#[test]
 fn INTEGRATION_CPU_lsr_can_halve_a_number() {
     let asm = "
         ; Halve the value at $1000

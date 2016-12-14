@@ -141,6 +141,7 @@ impl Cpu {
                 "LDX" => self.ldx(&operand),
                 "LDY" => self.ldy(&operand),
                 "LSR" => self.lsr(&operand),
+                "NOP" => self.nop(),
                 "RTS" => self.rts(),
                 "SED" => self.set_decimal_flag(true),
                 "STA" => self.sta(&operand),
@@ -511,6 +512,10 @@ impl Cpu {
             let addr = self.unwrap_address(&operand);
             self.memory.write_byte(addr, value);
         }
+    }
+
+    fn nop(&self) {
+        // Nothing. No Operation.
     }
 
     fn rts(&mut self) {
