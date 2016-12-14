@@ -677,3 +677,31 @@ fn INTEGRATION_CPU_ror() {
 
     assert_eq!(0x85, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_CPU_brk_rti() {
+    let asm = "
+        BRK
+        RTI
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let bytecode = assembler.assemble_string(asm).unwrap();
+    cpu.load(&bytecode[..], None);
+
+    // Force set some flags first
+    cpu.flags.carry = true;
+    cpu.flags.decimal = true;
+
+    cpu.step(); // Push them to the stack
+
+    cpu.flags.carry = false;
+    cpu.flags.decimal = false;
+
+    cpu.step(); // Pop them from the stack
+
+    assert_eq!(true, cpu.flags.carry);
+    assert_eq!(true, cpu.flags.decimal);
+}

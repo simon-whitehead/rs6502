@@ -149,6 +149,7 @@ impl Cpu {
                 "PLP" => self.plp(),
                 "ROL" => self.rol(&operand),
                 "ROR" => self.ror(&operand),
+                "RTI" => self.rti(),
                 "RTS" => self.rts(),
                 "SED" => self.set_decimal_flag(true),
                 "STA" => self.sta(&operand),
@@ -618,6 +619,13 @@ impl Cpu {
             let addr = self.unwrap_address(&operand);
             self.memory.write_byte(addr, value);
         }
+    }
+
+    fn rti(&mut self) {
+        let mut mem = &mut self.memory[STACK_START..STACK_END];
+
+        let value = self.stack.pop(mem).unwrap();
+        self.flags = value.into();
     }
 
     fn sta(&mut self, operand: &Operand) {
