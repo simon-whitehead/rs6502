@@ -649,11 +649,11 @@ impl Cpu {
     fn sbc(&mut self, operand: &Operand) {
         let carry = if self.flags.carry { 0 } else { 1 };
 
-        let value = self.unwrap_immediate(&operand) as u16;
+        let value = self.unwrap_immediate(&operand) as i16;
         let value_signs = self.registers.A & 0x80 == 0x80 && value & 0x80 == 0x80;
 
         // Do normal binary arithmetic first
-        let mut result = self.registers.A as u16 - value as u16 - carry as u16;
+        let mut result = self.registers.A as i16 - value as i16 - carry as i16;
 
         self.flags.zero = result as u8 & 0xFF == 0x00;
         self.flags.sign = result & 0x80 == 0x80;
