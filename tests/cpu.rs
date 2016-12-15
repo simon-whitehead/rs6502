@@ -603,14 +603,14 @@ mod tests {
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
 
-            cpu.step_n(10);
+            cpu.step_n(20);
 
             assert_eq!(0x56, cpu.registers.Y);
         }
 
         #[test]
         fn jmp_jumps() {
-            let code = vec![0xA9, 0x55, 0x4C, 0x07, 0xC0, 0xA9, 0xFF];
+            let code = vec![0xA9, 0x55, 0x4C, 0x07, 0x00, 0xA9, 0xFF];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
 

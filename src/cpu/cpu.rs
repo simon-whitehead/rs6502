@@ -79,14 +79,21 @@ impl Cpu {
     /// Runs N instructions of code through the Cpu
     pub fn step_n(&mut self, n: u32) -> CpuStepResult {
         for _ in 0..n {
-            if (self.registers.PC as usize) < self.code_start + self.code_size {
-                self.step()?;
-            } else {
+            if self.finished() {
                 break;
             }
+            self.step()?;
         }
 
         Ok(())
+    }
+
+    pub fn finished(&self) -> bool {
+        self.registers.PC > self.code_start as u16 + self.code_size as u16 - 1
+    }
+
+    pub fn reset(&mut self) {
+        self.registers.PC = self.code_start as u16;
     }
 
     /// Runs a single instruction of code through the Cpu
@@ -472,7 +479,7 @@ impl Cpu {
 
     fn jmp(&mut self, operand: &Operand) {
         let value = self.unwrap_address(&operand);
-        self.registers.PC = value;
+        self.registers.PC = self.code_start as u16 + value;
     }
 
     fn jsr(&mut self, operand: &Operand) {

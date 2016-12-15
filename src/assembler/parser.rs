@@ -85,6 +85,7 @@ impl Parser {
         let mut result = Vec::new();
 
         for line in &tokens {
+            let mut added_label = false;
             self.line += 1;
 
             let mut peeker = line.iter().peekable();

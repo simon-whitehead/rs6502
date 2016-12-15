@@ -76,7 +76,7 @@ impl Assembler {
         let mut lexer = Lexer::new();
         let tokens = lexer.lex_file(path)?;
         let mut parser = Parser::new();
-        let tokens = Vec::new(); // TODO: Fix
+        let tokens = parser.parse(tokens)?; // TODO: Fix
 
         Ok(self.assemble(tokens)?)
     }
@@ -138,6 +138,7 @@ impl Assembler {
     /// Stores all labels in the code in a Symbol table for lookup later
     fn index_labels(&mut self, tokens: &[ParserToken]) {
         let mut addr: u16 = 0;
+        let mut last_addressing_mode = AddressingMode::Absolute;
 
         for token in tokens {
             if let &ParserToken::Label(ref label) = token {
@@ -148,6 +149,7 @@ impl Assembler {
                 // Add the length of this opcode to our
                 // address offset
                 addr += opcode.length as u16;
+                last_addressing_mode = opcode.mode;
             }
         }
     }
