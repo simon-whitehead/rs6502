@@ -10,6 +10,11 @@ pub struct Disassembler {
     /// Determines whether opcodes are generated
     /// in the Assembly output
     disable_opcodes: bool,
+
+    /// Hints the disassembler at the code offset
+    /// in memory so that it can adjust its memory
+    /// offsets
+    code_offset: u16,
 }
 
 /// A 6502 instruction disassembler
@@ -36,6 +41,7 @@ impl Disassembler {
         Disassembler {
             disable_offsets: false,
             disable_opcodes: true,
+            code_offset: 0,
         }
     }
 
@@ -62,6 +68,7 @@ impl Disassembler {
         Disassembler {
             disable_offsets: true,
             disable_opcodes: true,
+            code_offset: 0,
         }
     }
 
@@ -88,6 +95,15 @@ impl Disassembler {
         Disassembler {
             disable_offsets: false,
             disable_opcodes: false,
+            code_offset: 0,
+        }
+    }
+
+    pub fn with_offset(offset: u16) -> Disassembler {
+        Disassembler {
+            disable_offsets: false,
+            disable_opcodes: false,
+            code_offset: offset,
         }
     }
 
@@ -131,7 +147,7 @@ impl Disassembler {
                         let addr = LittleEndian::read_u16(&[b1, b2]);
 
                         (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
-                         format!(" (${:04X})", addr))
+                         format!(" (${:04X})", self.code_offset + addr))
                     }
                     AddressingMode::Relative => {
                         let b1 = raw[i + 0x01];
@@ -142,7 +158,8 @@ impl Disassembler {
                             i + (offset as usize) + 0x02
                         };
 
-                        (format!(" {:02X} {:02X}", opcode.code, b1), format!(" ${:04X}", addr))
+                        (format!("{:02X} {:02X}", opcode.code, b1),
+                         format!(" ${:04X}", self.code_offset as usize + addr))
                     }
                     AddressingMode::ZeroPage => {
                         let b1 = raw[i + 0x01];
@@ -161,21 +178,21 @@ impl Disassembler {
                         let b2 = raw[i + 0x02];
                         let addr = LittleEndian::read_u16(&[b1, b2]);
                         (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
-                         format!(" ${:04X}", addr))
+                         format!(" ${:04X}", self.code_offset + addr))
                     }
                     AddressingMode::AbsoluteX => {
                         let b1 = raw[i + 0x01];
                         let b2 = raw[i + 0x02];
                         let addr = LittleEndian::read_u16(&[b1, b2]);
                         (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
-                         format!(" ${:04X},X", addr))
+                         format!(" ${:04X},X", self.code_offset + addr))
                     }
                     AddressingMode::AbsoluteY => {
                         let b1 = raw[i + 0x01];
                         let b2 = raw[i + 0x02];
                         let addr = LittleEndian::read_u16(&[b1, b2]);
                         (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
-                         format!(" ${:04X},Y", addr))
+                         format!(" ${:04X},Y", self.code_offset + addr))
                     }
                     AddressingMode::IndirectX => {
                         let b1 = raw[i + 0x01];
@@ -196,9 +213,16 @@ impl Disassembler {
                     }
                 } else {
                     if self.disable_opcodes {
-                        format!("{:04X} {}{}\n", i, opcode.mnemonic, val.1)
+                        format!("{:04X} {}{}\n",
+                                i + self.code_offset as usize,
+                                opcode.mnemonic,
+                                val.1)
                     } else {
-                        format!("{:04X} {:<8} {}{}\n", i, val.0, opcode.mnemonic, val.1)
+                        format!("{:04X} {:<8} {}{}\n",
+                                i + self.code_offset as usize,
+                                val.0,
+                                opcode.mnemonic,
+                                val.1)
                     }
                 };
                 result.push_str(&opcode_text);
