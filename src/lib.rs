@@ -1,15 +1,11 @@
 extern crate byteorder;
 
-mod cpu;
+mod assembler;
 mod disassembler;
+mod cpu;
 mod opcodes;
-mod registers;
 
-pub use cpu::Cpu;
+pub use assembler::Assembler;
+pub use cpu::{Cpu, CpuError, CpuStepResult};
 pub use disassembler::Disassembler;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {}
-}
+pub use opcodes::OpCode;
