@@ -152,8 +152,12 @@ impl Cpu {
                 "RTI" => self.rti(),
                 "RTS" => self.rts(),
                 "SBC" => self.sbc(&operand),
+                "SEC" => self.set_carry_flag(true),
                 "SED" => self.set_decimal_flag(true),
+                "SEI" => self.set_interrupt_flag(true),
                 "STA" => self.sta(&operand),
+                "STX" => self.stx(&operand),
+                "STY" => self.sty(&operand),
                 _ => return Err(CpuError::unknown_opcode(self.registers.PC, opcode.code)),
             }
 
@@ -661,6 +665,20 @@ impl Cpu {
     fn sta(&mut self, operand: &Operand) {
         let addr = self.unwrap_address(&operand);
         let value = self.registers.A;
+
+        self.write_byte(addr, value);
+    }
+
+    fn stx(&mut self, operand: &Operand) {
+        let addr = self.unwrap_address(&operand);
+        let value = self.registers.X;
+
+        self.write_byte(addr, value);
+    }
+
+    fn sty(&mut self, operand: &Operand) {
+        let addr = self.unwrap_address(&operand);
+        let value = self.registers.Y;
 
         self.write_byte(addr, value);
     }
