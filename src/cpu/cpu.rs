@@ -158,6 +158,12 @@ impl Cpu {
                 "STA" => self.sta(&operand),
                 "STX" => self.stx(&operand),
                 "STY" => self.sty(&operand),
+                "TAX" => self.tax(),
+                "TAY" => self.tay(),
+                "TSX" => self.tsx(),
+                "TXA" => self.txa(),
+                "TXS" => self.txs(),
+                "TYA" => self.tya(),
                 _ => return Err(CpuError::unknown_opcode(self.registers.PC, opcode.code)),
             }
 
@@ -681,6 +687,46 @@ impl Cpu {
         let value = self.registers.Y;
 
         self.write_byte(addr, value);
+    }
+
+    fn tax(&mut self) {
+        self.registers.X = self.registers.A;
+
+        self.flags.sign = self.registers.A & 0x80 == 0x80;
+        self.flags.zero = self.registers.A & 0xFF == 0x00;
+    }
+
+    fn tay(&mut self) {
+        self.registers.Y = self.registers.A;
+
+        self.flags.sign = self.registers.A & 0x80 == 0x80;
+        self.flags.zero = self.registers.A & 0xFF == 0x00;
+    }
+
+    fn tsx(&mut self) {
+        let value = self.stack.pointer as u8;
+        self.registers.X = value;
+
+        self.flags.sign = value & 0x80 == 0x80;
+        self.flags.zero = value & 0xFF == 0x00;
+    }
+
+    fn txa(&mut self) {
+        self.registers.A = self.registers.X;
+
+        self.flags.sign = self.registers.X & 0x80 == 0x80;
+        self.flags.zero = self.registers.X & 0xFF == 0x00;
+    }
+
+    fn txs(&mut self) {
+        self.stack.pointer = self.registers.X as usize;
+    }
+
+    fn tya(&mut self) {
+        self.registers.A = self.registers.Y;
+
+        self.flags.sign = self.registers.Y & 0x80 == 0x80;
+        self.flags.zero = self.registers.Y & 0xFF == 0x00;
     }
 
     fn relative_jump(&mut self, offset: u8) {

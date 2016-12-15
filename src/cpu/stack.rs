@@ -19,7 +19,7 @@ pub type StackPushResult = Result<(), StackError>;
 pub type StackPopResult<T> = Result<T, StackError>;
 
 pub struct Stack {
-    pointer: usize,
+    pub pointer: usize,
 }
 
 impl Stack {
