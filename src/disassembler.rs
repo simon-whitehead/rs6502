@@ -107,6 +107,14 @@ impl Disassembler {
         }
     }
 
+    pub fn disassemble(&self, raw: &[u8]) -> String {
+        self.disassemble_with_addresses(raw)
+            .into_iter()
+            .map(|x: (String, u16)| x.0)
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     /// Accepts a slice of 6502 bytecodes and translates them
     /// into an assembly String representation
     ///
@@ -126,8 +134,8 @@ impl Disassembler {
     ///
     /// "), Disassembler::clean_asm(asm));
     /// ```
-    pub fn disassemble(&self, raw: &[u8]) -> String {
-        let mut result = String::new();
+    pub fn disassemble_with_addresses(&self, raw: &[u8]) -> Vec<(String, u16)> {
+        let mut result = Vec::new();
 
         let mut i: usize = 0;
         while i < raw.len() {
@@ -202,7 +210,7 @@ impl Disassembler {
                         let b1 = raw[i + 0x01];
                         (format!(" {:02X} {:02X}", opcode.code, b1), format!(" (${:02X}),Y", b1))
                     }
-                    _ => ("".into(), "".into()),
+                    _ => (format!("{:02X}", opcode.code), "".into()),
                 };
 
                 let opcode_text = if self.disable_offsets {
@@ -225,7 +233,7 @@ impl Disassembler {
                                 val.1)
                     }
                 };
-                result.push_str(&opcode_text);
+                result.push((opcode_text, i as u16));
                 i += opcode.length as usize;
             } else {
                 panic!("Unsupported opcode");
