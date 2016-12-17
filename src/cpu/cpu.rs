@@ -374,7 +374,7 @@ impl Cpu {
     }
 
     fn brk(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END];
+        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         self.stack.push_u16(mem, self.registers.PC);
         self.stack.push(mem, self.flags.to_u8());
@@ -490,7 +490,7 @@ impl Cpu {
 
     fn jsr(&mut self, operand: &Operand) {
         let addr = self.unwrap_address(&operand);
-        let mut mem = &mut self.memory[STACK_START..STACK_END];
+        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         self.stack.push_u16(mem, self.registers.PC);
         self.registers.PC = self.code_start as u16 + addr;
@@ -558,19 +558,19 @@ impl Cpu {
     }
 
     fn pha(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END];
+        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         self.stack.push(mem, self.registers.A);
     }
 
     fn php(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END];
+        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         self.stack.push(mem, self.flags.to_u8());
     }
 
     fn pla(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END];
+        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         let value = self.stack.pop(mem).unwrap();
 
@@ -578,7 +578,7 @@ impl Cpu {
     }
 
     fn plp(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END];
+        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         let value = self.stack.pop(mem).unwrap();
 
@@ -586,7 +586,7 @@ impl Cpu {
     }
 
     fn rts(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END];
+        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
         let addr = self.stack.pop_u16(mem).unwrap();
 
         self.registers.PC = addr;
@@ -646,7 +646,7 @@ impl Cpu {
     }
 
     fn rti(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END];
+        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         let value = self.stack.pop(mem).unwrap();
         self.flags = value.into();

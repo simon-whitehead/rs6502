@@ -347,8 +347,8 @@ mod tests {
 
             cpu.step_n(10);
 
-            assert_eq!(0xC0, cpu.memory[0x1FE]);
-            assert_eq!(0x03, cpu.memory[0x1FD]);
+            assert_eq!(0xC0, cpu.memory[0x1FF]);
+            assert_eq!(0x03, cpu.memory[0x1FE]);
         }
 
         #[test]

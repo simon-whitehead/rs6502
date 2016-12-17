@@ -29,8 +29,8 @@ impl Stack {
 
     pub fn push(&mut self, stack_area: &mut [u8], val: u8) -> StackPushResult {
         if self.pointer > 0x00 {
-            self.pointer -= 0x01;
             stack_area[self.pointer] = val;
+            self.pointer -= 0x01;
 
             Ok(())
         } else {
@@ -40,7 +40,7 @@ impl Stack {
 
     pub fn push_u16(&mut self, stack_area: &mut [u8], val: u16) -> StackPushResult {
         if self.pointer > 0x01 {
-            LittleEndian::write_u16(&mut stack_area[self.pointer - 0x02..], val);
+            LittleEndian::write_u16(&mut stack_area[self.pointer - 0x01..], val);
             self.pointer -= 0x02;
 
             Ok(())
@@ -53,8 +53,8 @@ impl Stack {
         if self.pointer == 0xFF {
             Err(StackError::underflow())
         } else {
-            let val = stack_area[self.pointer];
             self.pointer += 0x01;
+            let val = stack_area[self.pointer];
 
             Ok(val)
         }
@@ -62,8 +62,9 @@ impl Stack {
 
     pub fn pop_u16(&mut self, stack_area: &mut [u8]) -> StackPopResult<u16> {
         if self.pointer < 0xFE {
+            self.pointer += 0x01;
             let result = LittleEndian::read_u16(&stack_area[self.pointer..]);
-            self.pointer += 0x02;
+            self.pointer += 0x01;
 
             Ok(result)
         } else {
@@ -78,17 +79,17 @@ mod tests {
 
     #[test]
     fn can_push() {
-        let mut stack_area = [0u8; 0xFF];
+        let mut stack_area = [0u8; 0x100];
         let mut stack = Stack::new();
 
         stack.push(&mut stack_area, 55);
 
-        assert_eq!(55, stack_area[0xFE]);
+        assert_eq!(55, stack_area[0xFF]);
     }
 
     #[test]
     fn can_push_then_pop() {
-        let mut stack_area = [0u8; 0xFF];
+        let mut stack_area = [0u8; 0x100];
         let mut stack = Stack::new();
 
         stack.push(&mut stack_area, 55);
@@ -99,7 +100,7 @@ mod tests {
 
     #[test]
     fn can_push_then_pop_multiple() {
-        let mut stack_area = [0u8; 0xFF];
+        let mut stack_area = [0u8; 0x100];
         let mut stack = Stack::new();
 
         stack.push(&mut stack_area, 5);
@@ -120,7 +121,7 @@ mod tests {
 
     #[test]
     fn can_not_pop_empty_stack() {
-        let mut stack_area = [0u8; 0xFF];
+        let mut stack_area = [0u8; 0x100];
         let mut stack = Stack::new();
 
         let result = stack.pop(&mut stack_area);
@@ -130,7 +131,7 @@ mod tests {
 
     #[test]
     fn can_not_push_to_full_stack() {
-        let mut stack_area = [0u8; 0xFF];
+        let mut stack_area = [0u8; 0x100];
         let mut stack = Stack::new();
 
         for _ in 0..0xFF {
@@ -144,18 +145,18 @@ mod tests {
 
     #[test]
     fn can_push_u16() {
-        let mut stack_area = [0u8; 0xFF];
+        let mut stack_area = [0u8; 0x100];
         let mut stack = Stack::new();
 
         stack.push_u16(&mut stack_area, 0x4400);
 
-        assert_eq!(0x44, stack_area[0xFE]);
-        assert_eq!(0x00, stack_area[0xFD]);
+        assert_eq!(0x44, stack_area[0xFF]);
+        assert_eq!(0x00, stack_area[0xFE]);
     }
 
     #[test]
     fn can_push_then_pop_u16() {
-        let mut stack_area = [0u8; 0xFF];
+        let mut stack_area = [0u8; 0x100];
         let mut stack = Stack::new();
 
         stack.push_u16(&mut stack_area, 0x4400);
