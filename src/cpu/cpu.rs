@@ -29,7 +29,8 @@ pub struct Cpu {
 }
 
 pub type CpuLoadResult = Result<(), CpuError>;
-pub type CpuStepResult = Result<(), CpuError>;
+pub type CpuStepResult = Result<u8, CpuError>;
+pub type CpuMultiStepResult = Result<u64, CpuError>;
 
 impl Cpu {
     /// Returns a default instance of a Cpu
@@ -76,16 +77,21 @@ impl Cpu {
         Ok(())
     }
 
+    pub fn get_code(&self) -> &[u8] {
+        &self.memory[self.code_start..self.code_start + self.code_size]
+    }
+
     /// Runs N instructions of code through the Cpu
-    pub fn step_n(&mut self, n: u32) -> CpuStepResult {
+    pub fn step_n(&mut self, n: u32) -> CpuMultiStepResult {
+        let mut v = 0;
         for _ in 0..n {
             if self.finished() {
                 break;
             }
-            self.step()?;
+            v += self.step()? as u64;
         }
 
-        Ok(())
+        Ok(v)
     }
 
     pub fn finished(&self) -> bool {
@@ -174,7 +180,7 @@ impl Cpu {
                 _ => return Err(CpuError::unknown_opcode(self.registers.PC, opcode.code)),
             }
 
-            Ok(())
+            Ok(opcode.time)
         } else {
             Err(CpuError::unknown_opcode(self.registers.PC, byte))
         }
