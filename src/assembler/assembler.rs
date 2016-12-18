@@ -58,8 +58,9 @@ impl Assembler {
         Assembler { symbol_table: HashMap::new() }
     }
 
-    pub fn assemble_string<S>(&mut self, code: S) -> Result<Vec<u8>, AssemblerError>
-        where S: Into<String>
+    pub fn assemble_string<S, O>(&mut self, code: S, offset: O) -> Result<Vec<u8>, AssemblerError>
+        where S: Into<String>,
+              O: Into<Option<u16>>
     {
         let code = code.into();
         let mut lexer = Lexer::new();
@@ -67,27 +68,34 @@ impl Assembler {
         let mut parser = Parser::new();
         let tokens = parser.parse(tokens)?;
 
-        Ok(self.assemble(tokens)?)
+        Ok(self.assemble(tokens, offset)?)
     }
 
-    pub fn assemble_file<P>(&mut self, path: P) -> Result<Vec<u8>, AssemblerError>
-        where P: AsRef<Path>
+    pub fn assemble_file<P, O>(&mut self, path: P, offset: O) -> Result<Vec<u8>, AssemblerError>
+        where P: AsRef<Path>,
+              O: Into<Option<u16>>
     {
         let mut lexer = Lexer::new();
         let tokens = lexer.lex_file(path)?;
         let mut parser = Parser::new();
-        let tokens = parser.parse(tokens)?; // TODO: Fix
+        let tokens = parser.parse(tokens)?;
 
-        Ok(self.assemble(tokens)?)
+        Ok(self.assemble(tokens, offset)?)
     }
 
-    fn assemble(&mut self, tokens: Vec<ParserToken>) -> Result<Vec<u8>, AssemblerError> {
+    fn assemble<O>(&mut self,
+                   tokens: Vec<ParserToken>,
+                   offset: O)
+                   -> Result<Vec<u8>, AssemblerError>
+        where O: Into<Option<u16>>
+    {
+        let mut addr: u16 = offset.into().unwrap_or(0);
+
         // First, index the labels so we have addresses for them
-        self.index_labels(&tokens);
+        self.index_labels(&tokens, addr);
 
         // Now assemble the code
         let mut result = Vec::new();
-        let mut addr: u16 = 0;
         let mut last_addressing_mode = AddressingMode::Absolute;
 
         for token in tokens {
@@ -136,8 +144,8 @@ impl Assembler {
     }
 
     /// Stores all labels in the code in a Symbol table for lookup later
-    fn index_labels(&mut self, tokens: &[ParserToken]) {
-        let mut addr: u16 = 0;
+    fn index_labels(&mut self, tokens: &[ParserToken], offset: u16) {
+        let mut addr: u16 = offset;
         let mut last_addressing_mode = AddressingMode::Absolute;
 
         for token in tokens {
@@ -164,7 +172,8 @@ mod tests {
         let mut assembler = Assembler::new();
         let bytes = assembler.assemble_string("
             LDA $4400
-        ")
+        ",
+                             None)
             .unwrap();
 
         assert_eq!(&[0xAD, 0x00, 0x44], &bytes[..]);
@@ -177,7 +186,8 @@ mod tests {
             MAIN LDA $4400
             PHA
             JMP MAIN
-        ")
+        ",
+                             None)
             .unwrap();
 
         assert_eq!(&[0xAD, 0x00, 0x44, 0x48, 0x4C, 0x00, 0x00], &bytes[..]);
@@ -191,7 +201,8 @@ mod tests {
                 LDA $4400
                 PHA
                 JMP MAIN
-        ")
+        ",
+                             None)
             .unwrap();
 
         assert_eq!(&[0xAD, 0x00, 0x44, 0x48, 0x4C, 0x00, 0x00], &bytes[..]);
@@ -206,7 +217,8 @@ mod tests {
             LDX #15
             MAIN LDA $4400
             RTS
-        ")
+        ",
+                             None)
             .unwrap();
 
         assert_eq!(&[0x4C, 0x06, 0x00, 0x48, 0xA2, 0x0F, 0xAD, 0x00, 0x44, 0x60],
@@ -221,7 +233,8 @@ mod tests {
             MAIN:
             LDX #15
             JMP MAIN_ADDRESS
-        ")
+        ",
+                             None)
             .unwrap();
 
         assert_eq!(&[0xA2, 0x0F, 0x4C, 0x00, 0x00], &bytes[..]);
@@ -237,7 +250,8 @@ mod tests {
             MAIN:
             LDX #15
             JMP MAIN_ADDRESS_INDIRECT_TWO
-        ")
+        ",
+                             None)
             .unwrap();
 
         assert_eq!(&[0xA2, 0x0F, 0x4C, 0x00, 0x00], &bytes[..]);
@@ -254,7 +268,8 @@ mod tests {
                     DEX             
                     BNE CLRM1       
                     RTS             
-        ")
+        ",
+                             None)
             .unwrap();
 
         assert_eq!(&[0xA9, 0x00, 0xA8, 0x91, 0xFF, 0xC8, 0xCA, 0xD0, 0xFA, 0x60],
@@ -278,7 +293,8 @@ mod tests {
             clrmem  lda #$00
                     tay             
             jmp     clrm1
-        ")
+        ",
+                             None)
             .unwrap();
 
         assert_eq!(&[0x4C, 0x10, 0x00, 0xA9, 0x00, 0xF0, 0x02, 0xEA, 0xEA, 0x91, 0xFF, 0xC8,
@@ -304,7 +320,8 @@ mod tests {
             CLRMEM  LDA #$00
                     TAY             
             JMP     CLRM1
-        ")
+        ",
+                             None)
             .unwrap();
 
         assert_eq!(&[0x4C, 0x11, 0x00, 0xA9, 0x00, 0xF0, 0x03, 0xEA, 0xEA, 0x00, 0x91, 0xFF,
@@ -320,7 +337,8 @@ mod tests {
             MAIN:
             LDX #15
             LDA (MAIN_ADDRESS),Y
-        ")
+        ",
+                             None)
             .unwrap();
 
         assert_eq!(&[0xA2, 0x0F, 0xB1, 0x00, 0x00], &bytes[..]);

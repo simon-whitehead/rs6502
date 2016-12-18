@@ -11,7 +11,7 @@ fn INTEGRATION_CPU_can_add_basic_numbers_in_accumulator() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(2);
@@ -30,7 +30,7 @@ fn INTEGRATION_CPU_can_add_binary_coded_decimal_numbers_in_accumulator() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(3);
@@ -48,7 +48,7 @@ fn INTEGRATION_CPU_can_add_mixed_mode_numbers_in_accumulator() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(2);
@@ -68,7 +68,7 @@ fn INTEGRATION_CPU_can_store_bytes_in_memory() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(4);
@@ -90,7 +90,7 @@ fn INTEGRATION_CPU_can_overwrite_own_memory() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(4);
@@ -110,7 +110,7 @@ fn INTEGRATION_CPU_can_load_byte_into_memory_and_logical_AND_it_with_A_register(
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(4);
@@ -133,7 +133,7 @@ fn INTEGRATION_CPU_can_load_byte_into_memory_and_logical_AND_it_with_A_register_
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(4);
@@ -154,7 +154,7 @@ fn INTEGRATION_CPU_does_not_branch_on_clear_carry_flag() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(3);
@@ -175,7 +175,7 @@ fn INTEGRATION_CPU_can_branch_on_carry_flag() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(4);
@@ -201,7 +201,7 @@ fn INTEGRATION_CPU_can_branch_on_carry_flag_to_correct_offset() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(5);
@@ -221,7 +221,7 @@ fn INTEGRATION_CPU_can_loop_on_bcc() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(30);
@@ -242,7 +242,7 @@ fn INTEGRATION_CPU_can_branch_on_bcs() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(30);
@@ -263,7 +263,7 @@ fn INTEGRATION_CPU_can_branch_on_beq() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(30);
@@ -284,7 +284,7 @@ fn INTEGRATION_CPU_does_not_branch_on_beq() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(30);
@@ -307,7 +307,7 @@ fn INTEGRATION_CPU_preserves_flags_on_bit() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(30);
@@ -328,7 +328,7 @@ fn INTEGRATION_CPU_bmi_branches_on_sign_bit_set() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(30);
@@ -349,7 +349,7 @@ fn INTEGRATION_CPU_bne_branches_on_zero_clear() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(50);
@@ -370,7 +370,7 @@ fn INTEGRATION_CPU_bpl_branches_on_sign_clear() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(50);
@@ -391,7 +391,7 @@ fn INTEGRATION_CPU_bpl_does_not_branch_on_sign_set() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(50);
@@ -416,7 +416,7 @@ fn INTEGRATION_CPU_cmp_does_branch_on_accumulator_less_than_memory_bcc() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(50);
@@ -440,7 +440,7 @@ fn INTEGRATION_CPU_cmp_does_branch_on_accumulator_greater_than_memory_bcs() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(50);
@@ -464,7 +464,7 @@ fn INTEGRATION_CPU_cmp_does_branch_on_accumulator_less_than_equal_to_bcc() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(50);
@@ -483,7 +483,7 @@ fn INTEGRATION_CPU_dec_decrements() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(3);
@@ -506,7 +506,7 @@ fn INTEGRATION_CPU_dex_decrements() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(20);
@@ -532,7 +532,7 @@ fn INTEGRATION_CPU_jsr_rts_combination_works() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(20);
@@ -558,7 +558,7 @@ fn INTEGRATION_CPU_jsr_rts_combination_works_when_code_segment_loaded_at_weird_a
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], 0xABCD);  // Load it at a weird address
 
     cpu.step_n(20);
@@ -582,7 +582,7 @@ fn INTEGRATION_CPU_lsr_can_halve_a_number() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(20);
@@ -601,7 +601,7 @@ fn INTEGRATION_CPU_ora_ors_against_accumulator() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(10);
@@ -621,7 +621,7 @@ fn INTEGRATION_CPU_pha_pla() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(3);
@@ -647,7 +647,7 @@ fn INTEGRATION_CPU_rol() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(3);
@@ -670,7 +670,7 @@ fn INTEGRATION_CPU_ror() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(3);
@@ -688,7 +688,7 @@ fn INTEGRATION_CPU_brk_rti() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     // Force set some flags first
@@ -716,7 +716,7 @@ fn INTEGRATION_CPU_sbc() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(2);
@@ -735,7 +735,7 @@ fn INTEGRATION_CPU_sbc_with_decimal_mode() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(3);

@@ -485,7 +485,7 @@ impl Cpu {
 
     fn jmp(&mut self, operand: &Operand) {
         let value = self.unwrap_address(&operand);
-        self.registers.PC = self.code_start as u16 + value;
+        self.registers.PC = value;
     }
 
     fn jsr(&mut self, operand: &Operand) {

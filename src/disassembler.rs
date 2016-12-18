@@ -186,21 +186,21 @@ impl Disassembler {
                         let b2 = raw[i + 0x02];
                         let addr = LittleEndian::read_u16(&[b1, b2]);
                         (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
-                         format!(" ${:04X}", self.code_offset + addr))
+                         format!(" ${:04X}", addr))
                     }
                     AddressingMode::AbsoluteX => {
                         let b1 = raw[i + 0x01];
                         let b2 = raw[i + 0x02];
                         let addr = LittleEndian::read_u16(&[b1, b2]);
                         (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
-                         format!(" ${:04X},X", self.code_offset + addr))
+                         format!(" ${:04X},X", addr))
                     }
                     AddressingMode::AbsoluteY => {
                         let b1 = raw[i + 0x01];
                         let b2 = raw[i + 0x02];
                         let addr = LittleEndian::read_u16(&[b1, b2]);
                         (format!("{:02X} {:02X} {:02X}", opcode.code, b1, b2),
-                         format!(" ${:04X},Y", self.code_offset + addr))
+                         format!(" ${:04X},Y", addr))
                     }
                     AddressingMode::IndirectX => {
                         let b1 = raw[i + 0x01];

@@ -9,7 +9,7 @@ fn INTEGRATION_ASSEMBLY_can_assemble_disassemble_basic_opcodes() {
     let mut assembler = rs6502::Assembler::new();
     let disassembler = rs6502::Disassembler::with_code_only();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     let disassembled = rs6502::Disassembler::clean_asm(disassembler.disassemble(&bytecode));
 
     assert_eq!(asm, disassembled.join("\n"));
@@ -31,7 +31,7 @@ fn INTEGRATION_ASSEMBLY_can_assemble_disassemble_clearmem_implementation() {
     let mut assembler = rs6502::Assembler::new();
     let disassembler = rs6502::Disassembler::with_code_only();
 
-    let bytecode = assembler.assemble_string(asm).unwrap();
+    let bytecode = assembler.assemble_string(asm, None).unwrap();
     let disassembled = rs6502::Disassembler::clean_asm(disassembler.disassemble(&bytecode));
 
     let clean_disassembled = disassembled.join("\n");

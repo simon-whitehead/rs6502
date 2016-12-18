@@ -617,7 +617,7 @@ mod tests {
             cpu.step_n(2);
 
             assert_eq!(0x55, cpu.registers.A);
-            assert_eq!(0xC007, cpu.registers.PC);
+            assert_eq!(0x0007, cpu.registers.PC);
         }
     }
 }
