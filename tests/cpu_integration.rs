@@ -532,7 +532,7 @@ fn INTEGRATION_CPU_jsr_rts_combination_works() {
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm, None).unwrap();
+    let bytecode = assembler.assemble_string(asm, 0xC000).unwrap();
     cpu.load(&bytecode[..], None);
 
     cpu.step_n(20);
@@ -558,7 +558,7 @@ fn INTEGRATION_CPU_jsr_rts_combination_works_when_code_segment_loaded_at_weird_a
     let mut cpu = rs6502::Cpu::new();
     let mut assembler = rs6502::Assembler::new();
 
-    let bytecode = assembler.assemble_string(asm, None).unwrap();
+    let bytecode = assembler.assemble_string(asm, 0xABCD).unwrap();
     cpu.load(&bytecode[..], 0xABCD);  // Load it at a weird address
 
     cpu.step_n(20);

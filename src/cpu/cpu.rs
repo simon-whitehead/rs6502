@@ -493,7 +493,7 @@ impl Cpu {
         let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         self.stack.push_u16(mem, self.registers.PC);
-        self.registers.PC = self.code_start as u16 + addr;
+        self.registers.PC = addr;
     }
 
     fn lda(&mut self, operand: &Operand) {
