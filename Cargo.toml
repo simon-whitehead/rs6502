@@ -8,4 +8,4 @@ keywords = ["6502", "emulator", "emulate", "assembly"]
 license = "MIT"
 
 [dependencies]
-byteorder = "*"
+byteorder = "0.5"
