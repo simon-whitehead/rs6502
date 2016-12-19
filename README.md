@@ -1,5 +1,4 @@
-# rs6502
----
+# rs6502 [![Build Status](https://travis-ci.org/simon-whitehead/rs6502.svg?branch=master)](https://travis-ci.org/simon-whitehead/rs6502)
 A crate for the 6502 microprocessor.
 
 This crate includes:
