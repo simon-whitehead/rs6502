@@ -49,6 +49,7 @@ impl From<ParserError> for AssemblerError {
     }
 }
 
+#[derive(Debug)]
 pub struct CodeSegment {
     pub address: u16,
     pub code: Vec<u8>,
@@ -121,9 +122,11 @@ impl Assembler {
                 addr += opcode.length as u16;
                 last_addressing_mode = opcode.mode;
             } else if let ParserToken::OrgDirective(org_addr) = token {
-                result.push(current_segment);
+                if current_segment.code.len() > 0 {
+                    result.push(current_segment);
+                }
                 current_segment = CodeSegment {
-                    address: addr,
+                    address: org_addr,
                     code: Vec::new(),
                 };
             } else if let ParserToken::RawByte(byte) = token {
@@ -369,5 +372,26 @@ mod tests {
             .unwrap();
 
         assert_eq!(&[0xA2, 0x0F, 0xB1, 0x00, 0x00], &segments[0].code[..]);
+    }
+
+    #[test]
+    fn can_assign_code_segments_to_different_memory_addresses() {
+        let mut assembler = Assembler::new();
+        let segments = assembler.assemble_string("
+            .ORG $C000
+            LDA #$FF
+            STA $2000
+
+            .ORG $100
+            LDA #$AA
+            STA $2001
+        ",
+                             None)
+            .unwrap();
+
+        println!("SEGMENTS: {:?}", segments);
+
+        assert_eq!(0xC000, segments[0].address);
+        assert_eq!(0x0100, segments[1].address);
     }
 }
