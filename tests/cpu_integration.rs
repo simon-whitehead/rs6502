@@ -742,3 +742,27 @@ fn INTEGRATION_CPU_sbc_with_decimal_mode() {
 
     assert_eq!(0x15, cpu.registers.A);
 }
+
+#[test]
+fn INTEGRATION_CPU_can_load_code_segments_at_offsets() {
+    let asm = "
+        .ORG $2000
+        LDA #$35
+        STA $4000
+
+        .ORG $ABCD
+        LDA #$00
+        STA $0100
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let segments = assembler.assemble_string(asm, None).unwrap();
+    for segment in segments {
+        cpu.load(&segment.code[..], segment.address);
+    }
+
+    assert_eq!(&[0xA9, 0x35, 0x8D, 0x00, 0x40], &cpu.memory[0x2000..0x2005]);
+    assert_eq!(&[0xA9, 0x00, 0x8D, 0x00, 0x01], &cpu.memory[0xABCD..0xABD2]);
+}
