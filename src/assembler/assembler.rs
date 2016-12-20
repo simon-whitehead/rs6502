@@ -49,6 +49,11 @@ impl From<ParserError> for AssemblerError {
     }
 }
 
+pub struct CodeSegment {
+    pub address: u16,
+    pub code: Vec<u8>,
+}
+
 pub struct Assembler {
     symbol_table: HashMap<String, Label>,
 }
@@ -58,7 +63,10 @@ impl Assembler {
         Assembler { symbol_table: HashMap::new() }
     }
 
-    pub fn assemble_string<S, O>(&mut self, code: S, offset: O) -> Result<Vec<u8>, AssemblerError>
+    pub fn assemble_string<S, O>(&mut self,
+                                 code: S,
+                                 offset: O)
+                                 -> Result<Vec<CodeSegment>, AssemblerError>
         where S: Into<String>,
               O: Into<Option<u16>>
     {
@@ -71,7 +79,10 @@ impl Assembler {
         Ok(self.assemble(tokens, offset)?)
     }
 
-    pub fn assemble_file<P, O>(&mut self, path: P, offset: O) -> Result<Vec<u8>, AssemblerError>
+    pub fn assemble_file<P, O>(&mut self,
+                               path: P,
+                               offset: O)
+                               -> Result<Vec<CodeSegment>, AssemblerError>
         where P: AsRef<Path>,
               O: Into<Option<u16>>
     {
@@ -86,7 +97,7 @@ impl Assembler {
     fn assemble<O>(&mut self,
                    tokens: Vec<ParserToken>,
                    offset: O)
-                   -> Result<Vec<u8>, AssemblerError>
+                   -> Result<Vec<CodeSegment>, AssemblerError>
         where O: Into<Option<u16>>
     {
         let mut addr: u16 = offset.into().unwrap_or(0);
@@ -97,17 +108,27 @@ impl Assembler {
         // Now assemble the code
         let mut result = Vec::new();
         let mut last_addressing_mode = AddressingMode::Absolute;
+        let mut current_segment = CodeSegment {
+            address: addr,
+            code: Vec::new(),
+        };
 
         for token in tokens {
             // Push an opcode into the output and increment our address
             // offset
             if let ParserToken::OpCode(opcode) = token {
-                result.push(opcode.code);
+                current_segment.code.push(opcode.code);
                 addr += opcode.length as u16;
                 last_addressing_mode = opcode.mode;
+            } else if let ParserToken::OrgDirective(org_addr) = token {
+                result.push(current_segment);
+                current_segment = CodeSegment {
+                    address: addr,
+                    code: Vec::new(),
+                };
             } else if let ParserToken::RawByte(byte) = token {
                 // Push raw bytes directly into the output
-                result.push(byte);
+                current_segment.code.push(byte);
             } else if let ParserToken::LabelArg(ref label) = token {
                 // Labels as arguments should be in the symbol table, look
                 // it up and calculate the address direction/location
@@ -116,8 +137,8 @@ impl Assembler {
                         let low_byte = (label_addr & 0xFF) as u8;
                         let high_byte = ((label_addr >> 8) & 0xFF) as u8;
 
-                        result.push(low_byte);
-                        result.push(high_byte);
+                        current_segment.code.push(low_byte);
+                        current_segment.code.push(high_byte);
                     } else {
                         // Its relative.. lets generate a relative branch
                         if addr > label_addr {
@@ -125,13 +146,13 @@ impl Assembler {
                             if distance < -128 || distance > 127 {
                                 return Err(AssemblerError::relative_offset_too_large(format!("Attempted jump to {} at {:04X}", label, addr)));
                             }
-                            result.push(distance as u8);
+                            current_segment.code.push(distance as u8);
                         } else {
                             let distance = label_addr - addr;
                             if distance > 127 {
                                 return Err(AssemblerError::relative_offset_too_large(format!("Attempted jump to {} at {:04X}", label, addr)));
                             }
-                            result.push(distance as u8);
+                            current_segment.code.push(distance as u8);
                         }
                     }
                 } else {
@@ -139,6 +160,8 @@ impl Assembler {
                 }
             }
         }
+
+        result.push(current_segment);
 
         Ok(result)
     }
@@ -158,6 +181,8 @@ impl Assembler {
                 // address offset
                 addr += opcode.length as u16;
                 last_addressing_mode = opcode.mode;
+            } else if let &ParserToken::OrgDirective(new_addr) = token {
+                addr = new_addr
             }
         }
     }
@@ -170,19 +195,19 @@ mod tests {
     #[test]
     fn can_assemble_basic_code() {
         let mut assembler = Assembler::new();
-        let bytes = assembler.assemble_string("
+        let segments = assembler.assemble_string("
             LDA $4400
         ",
                              None)
             .unwrap();
 
-        assert_eq!(&[0xAD, 0x00, 0x44], &bytes[..]);
+        assert_eq!(&[0xAD, 0x00, 0x44], &segments[0].code[..]);
     }
 
     #[test]
     fn can_jump_to_label_behind() {
         let mut assembler = Assembler::new();
-        let bytes = assembler.assemble_string("
+        let segments = assembler.assemble_string("
             MAIN LDA $4400
             PHA
             JMP MAIN
@@ -190,13 +215,14 @@ mod tests {
                              None)
             .unwrap();
 
-        assert_eq!(&[0xAD, 0x00, 0x44, 0x48, 0x4C, 0x00, 0x00], &bytes[..]);
+        assert_eq!(&[0xAD, 0x00, 0x44, 0x48, 0x4C, 0x00, 0x00],
+                   &segments[0].code[..]);
     }
 
     #[test]
     fn can_jump_to_label_with_colon_behind() {
         let mut assembler = Assembler::new();
-        let bytes = assembler.assemble_string("
+        let segments = assembler.assemble_string("
             MAIN:
                 LDA $4400
                 PHA
@@ -205,13 +231,14 @@ mod tests {
                              None)
             .unwrap();
 
-        assert_eq!(&[0xAD, 0x00, 0x44, 0x48, 0x4C, 0x00, 0x00], &bytes[..]);
+        assert_eq!(&[0xAD, 0x00, 0x44, 0x48, 0x4C, 0x00, 0x00],
+                   &segments[0].code[..]);
     }
 
     #[test]
     fn can_jump_to_label_ahead() {
         let mut assembler = Assembler::new();
-        let bytes = assembler.assemble_string("
+        let segments = assembler.assemble_string("
             JMP MAIN
             PHA
             LDX #15
@@ -222,13 +249,13 @@ mod tests {
             .unwrap();
 
         assert_eq!(&[0x4C, 0x06, 0x00, 0x48, 0xA2, 0x0F, 0xAD, 0x00, 0x44, 0x60],
-                   &bytes[..]);
+                   &segments[0].code[..]);
     }
 
     #[test]
     fn can_use_variables() {
         let mut assembler = Assembler::new();
-        let bytes = assembler.assemble_string("
+        let segments = assembler.assemble_string("
             MAIN_ADDRESS = $0000
             MAIN:
             LDX #15
@@ -237,13 +264,13 @@ mod tests {
                              None)
             .unwrap();
 
-        assert_eq!(&[0xA2, 0x0F, 0x4C, 0x00, 0x00], &bytes[..]);
+        assert_eq!(&[0xA2, 0x0F, 0x4C, 0x00, 0x00], &segments[0].code[..]);
     }
 
     #[test]
     fn can_use_variables_assigned_to_variables() {
         let mut assembler = Assembler::new();
-        let bytes = assembler.assemble_string("
+        let segments = assembler.assemble_string("
             MAIN_ADDRESS = $0000
             MAIN_ADDRESS_INDIRECT_ONE = MAIN_ADDRESS
             MAIN_ADDRESS_INDIRECT_TWO = MAIN_ADDRESS_INDIRECT_ONE
@@ -254,13 +281,13 @@ mod tests {
                              None)
             .unwrap();
 
-        assert_eq!(&[0xA2, 0x0F, 0x4C, 0x00, 0x00], &bytes[..]);
+        assert_eq!(&[0xA2, 0x0F, 0x4C, 0x00, 0x00], &segments[0].code[..]);
     }
 
     #[test]
     fn can_assemble_clearmem_implementation() {
         let mut assembler = Assembler::new();
-        let bytes = assembler.assemble_string("
+        let segments = assembler.assemble_string("
             CLRMEM  LDA #$00
                     TAY             
             CLRM1   STA ($FF),Y
@@ -273,13 +300,13 @@ mod tests {
             .unwrap();
 
         assert_eq!(&[0xA9, 0x00, 0xA8, 0x91, 0xFF, 0xC8, 0xCA, 0xD0, 0xFA, 0x60],
-                   &bytes[..]);
+                   &segments[0].code[..]);
     }
 
     #[test]
     fn can_assemble_clearmem_implementation_that_jumps_forward_and_is_lowercase() {
         let mut assembler = Assembler::new();
-        let bytes = assembler.assemble_string("
+        let segments = assembler.assemble_string("
             jmp     clrmem
             lda     #$00
             beq     clrm1
@@ -299,13 +326,13 @@ mod tests {
 
         assert_eq!(&[0x4C, 0x10, 0x00, 0xA9, 0x00, 0xF0, 0x02, 0xEA, 0xEA, 0x91, 0xFF, 0xC8,
                      0xCA, 0xD0, 0xFA, 0x60, 0xA9, 0x00, 0xA8, 0x4C, 0x09, 0x00],
-                   &bytes[..]);
+                   &segments[0].code[..]);
     }
 
     #[test]
     fn can_assemble_clearmem_implementation_that_jumps_forward() {
         let mut assembler = Assembler::new();
-        let bytes = assembler.assemble_string("
+        let segments = assembler.assemble_string("
             JMP     CLRMEM
             LDA     #$00
             BEQ     CLRM1
@@ -326,13 +353,13 @@ mod tests {
 
         assert_eq!(&[0x4C, 0x11, 0x00, 0xA9, 0x00, 0xF0, 0x03, 0xEA, 0xEA, 0x00, 0x91, 0xFF,
                      0xC8, 0xCA, 0xD0, 0xFA, 0x60, 0xA9, 0x00, 0xA8, 0x4C, 0x0A, 0x00],
-                   &bytes[..]);
+                   &segments[0].code[..]);
     }
 
     #[test]
     fn can_use_variables_for_indirect_addressing() {
         let mut assembler = Assembler::new();
-        let bytes = assembler.assemble_string("
+        let segments = assembler.assemble_string("
             MAIN_ADDRESS = $0000
             MAIN:
             LDX #15
@@ -341,6 +368,6 @@ mod tests {
                              None)
             .unwrap();
 
-        assert_eq!(&[0xA2, 0x0F, 0xB1, 0x00, 0x00], &bytes[..]);
+        assert_eq!(&[0xA2, 0x0F, 0xB1, 0x00, 0x00], &segments[0].code[..]);
     }
 }
