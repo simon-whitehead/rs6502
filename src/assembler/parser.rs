@@ -2,6 +2,8 @@ use std;
 use std::collections::HashMap;
 use std::iter::Peekable;
 
+use byteorder::{ByteOrder, LittleEndian};
+
 use ::opcodes::{AddressingMode, OpCode};
 use assembler::token::{ImmediateBase, LexerToken, ParserToken};
 
@@ -153,6 +155,26 @@ impl Parser {
                         }
                     }
                 }
+            } else if let &LexerToken::Period = next {
+                // Its a directive? Lets make sure:
+                peeker.next();
+                if let None = peeker.peek() {
+                    return Err(ParserError::unexpected_eol(self.line));
+                }
+
+                let next = *peeker.peek().unwrap();
+                if let &LexerToken::Ident(ref directive) = next {
+                    // Lets check if its a valid directive:
+                    let directive = directive.to_uppercase();
+                    match &directive[..] {
+                        "ORG" => {
+                            // TODO: Consume all tokens after this as raw tokens and
+                            //       have the Assembler decide how to handle them
+                            result.push(self.consume_org_directive(&mut peeker)?);
+                        }
+                        _ => return Err(ParserError::unknown_identifier(self.line)),
+                    }
+                }
             }
         }
 
@@ -221,27 +243,15 @@ impl Parser {
             };
             if let LexerToken::Address(ref address) = next {
                 // Its an address. What sort of address?
-                if address.len() == 2 || address.len() == 4 {
+                if address.len() <= 4 {
                     // Its zero-page or absolute.. lets try and convert it to a raw byte
-                    let (bytes, addressing_mode) = if address.len() == 2 {
+                    let addressing_mode = if address.len() <= 2 {
                         // Its a 1 byte address
-                        if let Ok(raw_byte) = u8::from_str_radix(&address[..], 16) {
-                            (vec![raw_byte], AddressingMode::ZeroPage)
-                        } else {
-                            return Err(ParserError::cannot_parse_address(self.line));
-                        }
+                        AddressingMode::ZeroPage
                     } else {
-                        // Its a 2 byte address
-                        if let Ok(low_byte) = u8::from_str_radix(&address[2..], 16) {
-                            if let Ok(high_byte) = u8::from_str_radix(&address[0..2], 16) {
-                                (vec![low_byte, high_byte], AddressingMode::Absolute)
-                            } else {
-                                return Err(ParserError::cannot_parse_address(self.line));
-                            }
-                        } else {
-                            return Err(ParserError::cannot_parse_address(self.line));
-                        }
+                        AddressingMode::Absolute
                     };
+                    let bytes = self.parse_address_bytes(address)?;
                     // consume the address and peek what is next:
                     peeker.next();
                     if let None = peeker.peek() {
@@ -337,29 +347,11 @@ impl Parser {
                     next.clone()
                 };
                 if let LexerToken::Address(ref address) = next {
-                    if address.len() != 2 && address.len() != 4 {
+                    if address.len() > 4 {
                         return Err(ParserError::address_out_of_bounds(self.line));
                     }
 
-                    let bytes = if address.len() == 2 {
-                        // Its a 1 byte address
-                        if let Ok(raw_byte) = u8::from_str_radix(&address[..], 16) {
-                            vec![raw_byte]
-                        } else {
-                            return Err(ParserError::cannot_parse_address(self.line));
-                        }
-                    } else {
-                        // Its a 2 byte address
-                        if let Ok(low_byte) = u8::from_str_radix(&address[2..], 16) {
-                            if let Ok(high_byte) = u8::from_str_radix(&address[0..2], 16) {
-                                vec![low_byte, high_byte]
-                            } else {
-                                return Err(ParserError::cannot_parse_address(self.line));
-                            }
-                        } else {
-                            return Err(ParserError::cannot_parse_address(self.line));
-                        }
-                    };
+                    let bytes = self.parse_address_bytes(address)?;
 
                     // The address is the right length - lets jump over that and peek next
                     peeker.next();
@@ -491,6 +483,41 @@ impl Parser {
         }
 
         unreachable!();
+    }
+
+    fn consume_org_directive<'a, I>(&mut self,
+                                    mut peeker: &mut Peekable<I>)
+                                    -> Result<ParserToken, ParserError>
+        where I: Iterator<Item = &'a LexerToken>
+    {
+        // Jump over the directive
+        peeker.next();
+        if let None = peeker.peek() {
+            return Err(ParserError::expected_address(self.line));
+        }
+
+        let next = peeker.next().unwrap();
+
+        if let &LexerToken::Address(ref address) = next {
+            let bytes = self.parse_address_bytes(address)?;
+            return Ok(ParserToken::OrgDirective(LittleEndian::read_u16(&bytes)));
+        } else {
+            return Err(ParserError::expected_address(self.line));
+        }
+    }
+
+    fn parse_address_bytes(&self, address: &str) -> Result<Vec<u8>, ParserError> {
+        if let Ok(addr) = u16::from_str_radix(address, 16) {
+            if address.len() <= 2 {
+                return Ok(vec![addr as u8]);
+            } else {
+                let low_byte = addr as u8;
+                let high_byte = (addr >> 0x08) as u8;
+                return Ok(vec![low_byte, high_byte]);
+            }
+        } else {
+            Err(ParserError::cannot_parse_address(self.line))
+        }
     }
 
     fn get_variable_value<S>(&self, ident: S) -> Result<Variable, ParserError>
@@ -729,5 +756,17 @@ mod tests {
 
         assert_eq!(Err(ParserError::invalid_opcode_addressing_mode_combination(2)),
                    result);
+    }
+
+    #[test]
+    fn can_parse_directives() {
+        let tokens = vec![vec![LexerToken::Period,
+                               LexerToken::Ident("ORG".into()),
+                               LexerToken::Address("C000".into())]];
+
+        let mut parser = Parser::new();
+        let result = parser.parse(tokens).unwrap();
+
+        assert_eq!(&[ParserToken::OrgDirective(0xC000)], &result[..]);
     }
 }
