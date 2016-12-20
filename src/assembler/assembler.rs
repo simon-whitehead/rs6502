@@ -389,9 +389,31 @@ mod tests {
                              None)
             .unwrap();
 
-        println!("SEGMENTS: {:?}", segments);
-
         assert_eq!(0xC000, segments[0].address);
         assert_eq!(0x0100, segments[1].address);
+    }
+
+    #[test]
+    fn can_jump_between_code_segments() {
+        let mut assembler = Assembler::new();
+        let segments = assembler.assemble_string("
+            .ORG $C000
+            JMP CALLBACK
+
+            .ORG $2000
+            LDA #$AA
+            STA $2001
+
+            CALLBACK
+            LDX #$0A
+        ",
+                             None)
+            .unwrap();
+
+        assert_eq!(0xC000, segments[0].address);
+        assert_eq!(0x2000, segments[1].address);
+
+        assert_eq!(0x05, segments[0].code[0x01]);
+        assert_eq!(0x20, segments[0].code[0x02]);
     }
 }
