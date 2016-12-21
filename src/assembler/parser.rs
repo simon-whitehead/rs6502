@@ -168,8 +168,6 @@ impl Parser {
                     let directive = directive.to_uppercase();
                     match &directive[..] {
                         "ORG" => {
-                            // TODO: Consume all tokens after this as raw tokens and
-                            //       have the Assembler decide how to handle them
                             result.push(self.consume_org_directive(&mut peeker)?);
                         }
                         _ => return Err(ParserError::unknown_identifier(self.line)),
