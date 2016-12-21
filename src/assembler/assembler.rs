@@ -129,6 +129,7 @@ impl Assembler {
                     address: org_addr,
                     code: Vec::new(),
                 };
+                addr = org_addr;
             } else if let ParserToken::RawByte(byte) = token {
                 // Push raw bytes directly into the output
                 current_segment.code.push(byte);
