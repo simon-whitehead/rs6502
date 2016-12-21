@@ -26,5 +26,5 @@ pub enum ParserToken {
     OpCode(OpCode),
     Absolute(String),
     RawByte(u8),
-    Directive(String),
+    OrgDirective(u16),
 }

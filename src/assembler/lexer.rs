@@ -445,4 +445,23 @@ mod tests {
                      LexerToken::CloseParenthesis],
                    &tokens[1][..]);
     }
+
+    #[test]
+    fn can_handle_directives() {
+        let mut lexer = Lexer::new();
+        let tokens = lexer.lex_string("
+            .ORG $C000
+            LDA #$FF
+        ")
+            .unwrap();
+
+        assert_eq!(&[LexerToken::Period,
+                     LexerToken::Ident("ORG".into()),
+                     LexerToken::Address("C000".into())],
+                   &tokens[1][..]);
+
+        assert_eq!(&[LexerToken::Ident("LDA".into()),
+                     LexerToken::Immediate("FF".into(), ImmediateBase::Base16)],
+                   &tokens[2][..]);
+    }
 }
