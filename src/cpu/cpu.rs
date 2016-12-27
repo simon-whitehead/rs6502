@@ -243,6 +243,11 @@ impl Cpu {
     pub fn nmi(&mut self) {
         // Always handle an NMI
         let handler_addr = LittleEndian::read_u16(&self.memory[NMI_VECTOR..]);
+
+        // ..unless its not set to something other than zero:
+        if handler_addr == 0 {
+            return;
+        }
         let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         self.stack.push_u16(mem, self.registers.PC);
@@ -260,6 +265,12 @@ impl Cpu {
         }
 
         let handler_addr = LittleEndian::read_u16(&self.memory[IRQ_VECTOR..]);
+
+        // ..unless its not set to something other than zero:
+        if handler_addr == 0 {
+            return;
+        }
+
         let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         self.stack.push_u16(mem, self.registers.PC);
