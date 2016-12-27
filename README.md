@@ -47,8 +47,22 @@ STA MEMORY_ADDRESS
 ```
 Will compile to `A9 FF 85 00 10`.
 
-The assembler does not currently have the ability to segment code and load it at specific addresses. This
-is, however, a feature I would like to bring to it in future.
+### Segmentation
+You can specify the memory layout of code segments via the `.ORG` directive.
+
+For example, the following code generates one `CodeSegment` at address `0x2000` and another at `0x4000`:
+
+```Assembly
+.ORG $2000
+
+    LDA #$FF
+    STA $00
+
+.ORG $4000
+
+    LDX #$AA
+    STX $01
+```
 
 ## The Emulator
 The emulator supports all _supported_ opcodes for the 6502 Microprocessor. It does not currently support any of the
