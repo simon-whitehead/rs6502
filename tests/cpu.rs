@@ -368,19 +368,6 @@ mod tests {
         }
 
         #[test]
-        fn brk_does_store_pc_and_status_flags_on_stack() {
-            let code = vec![0xA9, 0x0E, 0x00];
-            let mut cpu = Cpu::new();
-            cpu.load(&code[..], None);
-            cpu.reset();
-
-            cpu.step_n(10);
-
-            assert_eq!(0xC0, cpu.memory[0x1FF]);
-            assert_eq!(0x03, cpu.memory[0x1FE]);
-        }
-
-        #[test]
         fn bvc_does_not_jump_on_overflow_set() {
             let code = vec![0xA9, 0x7F, 0x69, 0x01, 0x50, 0x03, 0xA9, 0xFF];
             let mut cpu = Cpu::new();
