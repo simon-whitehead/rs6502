@@ -801,3 +801,138 @@ fn INTEGRATION_CPU_can_load_code_segments_at_offsets() {
     assert_eq!(&[0xA9, 0x35, 0x8D, 0x00, 0x40], &cpu.memory[0x2000..0x2005]);
     assert_eq!(&[0xA9, 0x00, 0x8D, 0x00, 0x01], &cpu.memory[0xABCD..0xABD2]);
 }
+
+#[test]
+fn INTEGRATION_CPU_can_force_interrupt_code() {
+    let asm = "
+        ; Store our interrupt handler address
+        LDX #$00
+        STX $FFFA
+        LDX #$20
+        STX $FFFB
+
+        SEI         ; Disable interrupts
+        LDA #$20    ; Load 32 into A
+        CMP #$A0    ; Compare it to 160
+        BEQ END     ; If its 160, jump to the end (it should be 160 because we interrupted)
+        LDA #$30
+    END:
+
+        ; This is the interrupt handler
+    .ORG $2000
+        LDA #$A0    ; Load 160 into A
+        RTI
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let segments = assembler.assemble_string(asm, None).unwrap();
+    for segment in segments {
+        cpu.load(&segment.code[..], segment.address);
+    }
+    cpu.reset();
+    cpu.flags.interrupt_disabled = false;
+
+    // Execute the handler storage code
+    cpu.step_n(4);
+    // Execute SEI and LDA #$20
+    cpu.step_n(2);
+
+    // Force the interrupt
+    cpu.nmi();
+
+    // Execute the rest:
+    cpu.step_n(50);
+
+    assert_eq!(0xA0, cpu.registers.A);
+}
+
+#[test]
+fn INTEGRATION_CPU_cant_interrupt_when_disabled() {
+    let asm = "
+        ; Store our interrupt handler address
+        LDX #$00
+        STX $FFFE
+        LDX #$20
+        STX $FFFF
+
+        SEI         ; Disable interrupts
+        LDA #$20    ; Load 32 into A
+        CMP #$A0    ; Compare it to 160
+        BEQ END     ; If its 160, jump to the end (it should NOT be 160 because we disabled interrupts)
+        LDA #$30
+    END:
+
+        ; This is the interrupt handler
+    .ORG $2000
+        LDA #$A0    ; Load 160 into A
+        RTI
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let segments = assembler.assemble_string(asm, None).unwrap();
+    for segment in segments {
+        cpu.load(&segment.code[..], segment.address);
+    }
+    cpu.reset();
+    cpu.flags.interrupt_disabled = false;
+
+    // Execute the handler storage code
+    cpu.step_n(4);
+    // Execute SEI and LDA #$20
+    cpu.step_n(2);
+
+    // Attempt an interrupt
+    cpu.irq();
+
+    // Execute the rest:
+    cpu.step_n(50);
+
+    assert_eq!(0x30, cpu.registers.A);
+}
+
+#[test]
+fn INTEGRATION_CPU_can_interrupt_when_not_disabled() {
+    let asm = "
+        ; Store our interrupt handler address
+        LDX #$00
+        STX $FFFE
+        LDX #$20
+        STX $FFFF
+
+        LDA #$20    ; Load 32 into A
+        CMP #$A0    ; Compare it to 160
+        BEQ END     ; If its 160, jump to the end (it should be 160 because we interrupted)
+        LDA #$30
+    END:
+
+        ; This is the interrupt handler
+    .ORG $2000
+        LDA #$A0    ; Load 160 into A
+        RTI
+    ";
+
+    let mut cpu = rs6502::Cpu::new();
+    let mut assembler = rs6502::Assembler::new();
+
+    let segments = assembler.assemble_string(asm, None).unwrap();
+    for segment in segments {
+        cpu.load(&segment.code[..], segment.address);
+    }
+    cpu.reset();
+    cpu.flags.interrupt_disabled = false;
+
+    // Execute the handler storage code and LDA #$20
+    cpu.step_n(5);
+
+    // Attempt an interrupt
+    cpu.irq();
+
+    // Execute the rest:
+    cpu.step_n(50);
+
+    assert_eq!(0xA0, cpu.registers.A);
+}

@@ -39,7 +39,7 @@ impl Stack {
     }
 
     pub fn push_u16(&mut self, stack_area: &mut [u8], val: u16) -> StackPushResult {
-        if self.pointer > 0x01 {
+        if self.pointer >= 0x01 {
             LittleEndian::write_u16(&mut stack_area[self.pointer - 0x01..], val);
             self.pointer -= 0x02;
 
@@ -61,7 +61,7 @@ impl Stack {
     }
 
     pub fn pop_u16(&mut self, stack_area: &mut [u8]) -> StackPopResult<u16> {
-        if self.pointer < 0xFE {
+        if self.pointer <= 0xFE {
             self.pointer += 0x01;
             let result = LittleEndian::read_u16(&stack_area[self.pointer..]);
             self.pointer += 0x01;
