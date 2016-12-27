@@ -18,9 +18,10 @@ mod tests {
             let fake_code = vec![0x0A, 0x0B, 0x0C, 0x0D];
             let mut cpu = Cpu::new();
             cpu.load(&fake_code[..], None);
+            cpu.reset();
 
             let memory_sum: u32 = cpu.memory.iter().map(|n| *n as u32).sum();
-            assert_eq!(46, memory_sum);
+            assert_eq!(46 + 0x00C0, memory_sum);
         }
 
         #[test]
@@ -28,6 +29,7 @@ mod tests {
             let fake_code = vec![0x0A, 0x0B, 0x0C, 0x0D];
             let mut cpu = Cpu::new();
             cpu.load(&fake_code[..], None);
+            cpu.reset();
 
             assert_eq!(0x0D, cpu.memory.read_byte(0xC003));
             assert_eq!(0x0C, cpu.memory.read_byte(0xC002));
@@ -40,6 +42,7 @@ mod tests {
             let fake_code = vec![0x0A, 0x0B, 0x0C, 0x0D];
             let mut cpu = Cpu::new();
             cpu.load(&fake_code[..], 0xF000);
+            cpu.reset();
 
             assert_eq!(0x0D, cpu.memory.read_byte(0xF003));
             assert_eq!(0x0C, cpu.memory.read_byte(0xF002));
@@ -52,6 +55,7 @@ mod tests {
             let fake_code = vec![0x0A, 0x0B, 0x0C, 0x0D];
             let mut cpu = Cpu::new();
             let load_result = cpu.load(&fake_code[..], 0xFFFD);
+            cpu.reset();
 
             assert_eq!(Err(CpuError::code_segment_out_of_range(0xFFFD)),
                        load_result);
@@ -62,6 +66,7 @@ mod tests {
             let fake_code = vec![0xC3];
             let mut cpu = Cpu::new();
             cpu.load(&fake_code[..], None);
+            cpu.reset();
             let step_result: CpuStepResult = cpu.step();
 
             assert_eq!(Err(CpuError::unknown_opcode(0xC000, 0xC3)), step_result);// This is the unofficial DCP (d,X) opcode
@@ -72,6 +77,7 @@ mod tests {
             let fake_code = vec![0xC3];
             let mut cpu = Cpu::new();
             cpu.load(&fake_code[..], None);
+            cpu.reset();
             let step_result: CpuStepResult = cpu.step();
         }
 
@@ -80,6 +86,7 @@ mod tests {
             let code = vec![0xF8];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step();
 
@@ -91,6 +98,7 @@ mod tests {
             let code = vec![0xD8];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step();
 
@@ -102,6 +110,7 @@ mod tests {
             let code = vec![0xA9, 0x05, 0x69, 0x03];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(2);
 
@@ -113,6 +122,7 @@ mod tests {
             let code = vec![0xA9, 0xFD, 0x69, 0x05];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(2);
 
@@ -125,6 +135,7 @@ mod tests {
             let code = vec![0xF8, 0xA9, 0x05, 0x69, 0x05];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(3);
 
@@ -137,6 +148,7 @@ mod tests {
             let code = vec![0xF8, 0xA9, 0x95, 0x69, 0x10];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(3);
 
@@ -150,6 +162,7 @@ mod tests {
             let code = vec![0xA9, 0x20, 0x8D, 0x00, 0x20];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(2);
 
@@ -163,6 +176,7 @@ mod tests {
             let code = vec![0xA9, 0xFF, 0x29, 0x0F];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(2);
 
@@ -176,6 +190,7 @@ mod tests {
             let code = vec![0xA9, 0x02, 0x0A];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(2);
 
@@ -188,6 +203,7 @@ mod tests {
             let code = vec![0xA9, 0x02, 0x0A];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(2);
 
@@ -200,6 +216,7 @@ mod tests {
             let code = vec![0xA9, 0x80, 0x0A];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(2);
 
@@ -212,6 +229,7 @@ mod tests {
             let code = vec![0xA9, 0xFE, 0x69, 0x01, 0x90, 0x03, 0xA9, 0x00];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(3);
 
@@ -225,6 +243,7 @@ mod tests {
             let code = vec![0xA9, 0xF0, 0x69, 0x01, 0x90, 0xFC];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(50);
 
@@ -236,6 +255,7 @@ mod tests {
             let code = vec![0xA9, 0xFF, 0x69, 0x01, 0xB0, 0x03, 0xA9, 0xAA];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -248,6 +268,7 @@ mod tests {
             let code = vec![0xA9, 0xF0, 0x69, 0x10, 0xF0, 0x03, 0xA9, 0xAA];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -259,6 +280,7 @@ mod tests {
             let code = vec![0xA9, 0xF0, 0x24, 0x00];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -271,6 +293,7 @@ mod tests {
             let code = vec![0xA9, 0xF0, 0x85, 0x44, 0x24, 0x44];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -285,6 +308,7 @@ mod tests {
             let code = vec![0xA9, 0x7F, 0x69, 0x01, 0x30, 0x03, 0xA9, 0x00];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -297,6 +321,7 @@ mod tests {
             let code = vec![0xA9, 0xFE, 0x69, 0x01, 0xD0, 0x03, 0xA9, 0xAA];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -309,6 +334,7 @@ mod tests {
             let code = vec![0xA9, 0xFF, 0x69, 0x01, 0xD0, 0x03, 0xA9, 0xAA];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -320,6 +346,7 @@ mod tests {
             let code = vec![0xA9, 0xFE, 0x10, 0x03, 0xA9, 0xF3];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -332,6 +359,7 @@ mod tests {
             let code = vec![0xA9, 0x0E, 0x10, 0x03, 0xA9, 0xF3];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -344,6 +372,7 @@ mod tests {
             let code = vec![0xA9, 0x0E, 0x00];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -356,6 +385,7 @@ mod tests {
             let code = vec![0xA9, 0x7F, 0x69, 0x01, 0x50, 0x03, 0xA9, 0xFF];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -368,6 +398,7 @@ mod tests {
             let code = vec![0xA9, 0x7E, 0x69, 0x01, 0x50, 0x03, 0xA9, 0xFF];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -380,6 +411,7 @@ mod tests {
             let code = vec![0xA9, 0x7E, 0x69, 0x01, 0x70, 0x03, 0xA9, 0xFF];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -392,6 +424,7 @@ mod tests {
             let code = vec![0xA9, 0x7F, 0x69, 0x01, 0x70, 0x03, 0xA9, 0xFF];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -404,6 +437,7 @@ mod tests {
             let code = vec![0x18];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
             cpu.flags.carry = true;
 
             cpu.step();
@@ -416,6 +450,7 @@ mod tests {
             let code = vec![0xD8];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
             cpu.flags.decimal = true;
 
             cpu.step();
@@ -428,6 +463,7 @@ mod tests {
             let code = vec![0x58];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
             cpu.flags.interrupt_disabled = true;
 
             cpu.step();
@@ -440,6 +476,7 @@ mod tests {
             let code = vec![0xB8];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
             cpu.flags.overflow = true;
 
             cpu.step();
@@ -452,6 +489,7 @@ mod tests {
             let code = vec![0xA9, 0x55, 0xC9, 0x55];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
             cpu.flags.zero = false;
 
             cpu.step_n(2);
@@ -464,6 +502,7 @@ mod tests {
             let code = vec![0xA9, 0x55, 0xC9, 0x65];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
             cpu.flags.carry = true;
 
             cpu.step_n(2);
@@ -476,6 +515,7 @@ mod tests {
             let code = vec![0xA9, 0x65, 0xC9, 0x55];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
             cpu.flags.carry = false;
 
             cpu.step_n(2);
@@ -488,6 +528,7 @@ mod tests {
             let code = vec![0xA2, 0x55, 0xE0, 0x65];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
             cpu.flags.carry = true;
 
             cpu.step_n(2);
@@ -500,6 +541,7 @@ mod tests {
             let code = vec![0xA2, 0x65, 0xE0, 0x55];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
             cpu.flags.carry = false;
 
             cpu.step_n(2);
@@ -512,6 +554,7 @@ mod tests {
             let code = vec![0xA0, 0x55, 0xC0, 0x65];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
             cpu.flags.carry = true;
 
             cpu.step_n(2);
@@ -524,6 +567,7 @@ mod tests {
             let code = vec![0xA0, 0x65, 0xC0, 0x55];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
             cpu.flags.carry = false;
 
             cpu.step_n(2);
@@ -536,6 +580,7 @@ mod tests {
             let code = vec![0xA9, 0x55, 0x85, 0x85, 0xC6, 0x85];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -547,6 +592,7 @@ mod tests {
             let code = vec![0xA2, 0x55, 0xCA];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -558,6 +604,7 @@ mod tests {
             let code = vec![0xA0, 0x55, 0x88];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -569,6 +616,7 @@ mod tests {
             let code = vec![0xA9, 0x00, 0x49, 0x80];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(2);
 
@@ -580,6 +628,7 @@ mod tests {
             let code = vec![0xA9, 0x55, 0x85, 0x85, 0xE6, 0x85];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -591,6 +640,7 @@ mod tests {
             let code = vec![0xA2, 0x55, 0xE8];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(10);
 
@@ -602,6 +652,7 @@ mod tests {
             let code = vec![0xA0, 0x55, 0xC8];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(20);
 
@@ -613,6 +664,7 @@ mod tests {
             let code = vec![0xA9, 0x55, 0x4C, 0x07, 0x00, 0xA9, 0xFF];
             let mut cpu = Cpu::new();
             cpu.load(&code[..], None);
+            cpu.reset();
 
             cpu.step_n(2);
 

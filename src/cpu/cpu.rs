@@ -1,3 +1,5 @@
+use byteorder::{LittleEndian, ByteOrder};
+
 use ::opcodes::{AddressingMode, OpCode};
 
 use cpu::cpu_error::CpuError;
@@ -69,12 +71,20 @@ impl Cpu {
 
         // Set the Program Counter to point at the
         // start address of the code segment
-        self.registers.PC = addr;
+        self.set_start_vector(addr);
 
         self.code_start = addr as usize;
         self.code_size = code.len();
 
         Ok(())
+    }
+
+    /// Sets the start vector in memory if its currently zero.
+    fn set_start_vector(&mut self, addr: u16) {
+        let current = LittleEndian::read_u16(&self.memory[0xFFFC..]);
+        if current == 0 {
+            LittleEndian::write_u16(&mut self.memory[0xFFFC..], addr);
+        }
     }
 
     pub fn get_code(&self) -> &[u8] {
@@ -99,7 +109,7 @@ impl Cpu {
     }
 
     pub fn reset(&mut self) {
-        self.registers.PC = self.code_start as u16;
+        self.registers.PC = LittleEndian::read_u16(&self.memory[0xFFFC..]);
     }
 
     /// Runs a single instruction of code through the Cpu
@@ -560,17 +570,17 @@ impl Cpu {
     fn pha(&mut self) {
         let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
-        self.stack.push(mem, self.registers.A);
+        self.stack.push(mem, self.registers.A).unwrap();
     }
 
     fn php(&mut self) {
         let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
-        self.stack.push(mem, self.flags.to_u8());
+        self.stack.push(mem, self.flags.to_u8()).unwrap();
     }
 
     fn pla(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
+        let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         let value = self.stack.pop(mem).unwrap();
 
@@ -578,7 +588,7 @@ impl Cpu {
     }
 
     fn plp(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
+        let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         let value = self.stack.pop(mem).unwrap();
 
@@ -646,7 +656,7 @@ impl Cpu {
     }
 
     fn rti(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
+        let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         let value = self.stack.pop(mem).unwrap();
         self.flags = value.into();

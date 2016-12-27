@@ -13,6 +13,7 @@ fn INTEGRATION_CPU_can_add_basic_numbers_in_accumulator() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(2);
 
@@ -32,6 +33,7 @@ fn INTEGRATION_CPU_can_add_binary_coded_decimal_numbers_in_accumulator() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(3);
 
@@ -50,6 +52,7 @@ fn INTEGRATION_CPU_can_add_mixed_mode_numbers_in_accumulator() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(2);
 
@@ -70,6 +73,7 @@ fn INTEGRATION_CPU_can_store_bytes_in_memory() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(4);
 
@@ -92,6 +96,7 @@ fn INTEGRATION_CPU_can_overwrite_own_memory() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(4);
 
@@ -112,6 +117,7 @@ fn INTEGRATION_CPU_can_load_byte_into_memory_and_logical_AND_it_with_A_register(
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(4);
 
@@ -135,6 +141,7 @@ fn INTEGRATION_CPU_can_load_byte_into_memory_and_logical_AND_it_with_A_register_
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(4);
 
@@ -156,6 +163,7 @@ fn INTEGRATION_CPU_does_not_branch_on_clear_carry_flag() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(3);
 
@@ -177,6 +185,7 @@ fn INTEGRATION_CPU_can_branch_on_carry_flag() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(4);
 
@@ -203,6 +212,7 @@ fn INTEGRATION_CPU_can_branch_on_carry_flag_to_correct_offset() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(5);
 
@@ -223,6 +233,7 @@ fn INTEGRATION_CPU_can_loop_on_bcc() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(30);
 
@@ -244,6 +255,7 @@ fn INTEGRATION_CPU_can_branch_on_bcs() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(30);
 
@@ -265,6 +277,7 @@ fn INTEGRATION_CPU_can_branch_on_beq() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(30);
 
@@ -286,6 +299,7 @@ fn INTEGRATION_CPU_does_not_branch_on_beq() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(30);
 
@@ -309,6 +323,7 @@ fn INTEGRATION_CPU_preserves_flags_on_bit() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(30);
 
@@ -330,6 +345,7 @@ fn INTEGRATION_CPU_bmi_branches_on_sign_bit_set() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(30);
 
@@ -351,6 +367,7 @@ fn INTEGRATION_CPU_bne_branches_on_zero_clear() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(50);
 
@@ -372,6 +389,7 @@ fn INTEGRATION_CPU_bpl_branches_on_sign_clear() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(50);
 
@@ -393,6 +411,7 @@ fn INTEGRATION_CPU_bpl_does_not_branch_on_sign_set() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(50);
 
@@ -418,6 +437,7 @@ fn INTEGRATION_CPU_cmp_does_branch_on_accumulator_less_than_memory_bcc() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(50);
 
@@ -442,6 +462,7 @@ fn INTEGRATION_CPU_cmp_does_branch_on_accumulator_greater_than_memory_bcs() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(50);
 
@@ -466,6 +487,7 @@ fn INTEGRATION_CPU_cmp_does_branch_on_accumulator_less_than_equal_to_bcc() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(50);
 
@@ -485,6 +507,7 @@ fn INTEGRATION_CPU_dec_decrements() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(3);
 
@@ -508,6 +531,7 @@ fn INTEGRATION_CPU_dex_decrements() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(20);
 
@@ -534,6 +558,7 @@ fn INTEGRATION_CPU_jsr_rts_combination_works() {
 
     let segments = assembler.assemble_string(asm, 0xC000).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(20);
 
@@ -560,6 +585,7 @@ fn INTEGRATION_CPU_jsr_rts_combination_works_when_code_segment_loaded_at_weird_a
 
     let segments = assembler.assemble_string(asm, 0xABCD).unwrap();
     cpu.load(&segments[0].code[..], 0xABCD);  // Load it at a weird address
+    cpu.reset();
 
     cpu.step_n(20);
 
@@ -584,6 +610,7 @@ fn INTEGRATION_CPU_lsr_can_halve_a_number() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(20);
 
@@ -603,6 +630,7 @@ fn INTEGRATION_CPU_ora_ors_against_accumulator() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(10);
 
@@ -623,6 +651,7 @@ fn INTEGRATION_CPU_pha_pla() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(3);
 
@@ -649,6 +678,7 @@ fn INTEGRATION_CPU_rol() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(3);
 
@@ -672,6 +702,7 @@ fn INTEGRATION_CPU_ror() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(3);
 
@@ -690,6 +721,7 @@ fn INTEGRATION_CPU_brk_rti() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     // Force set some flags first
     cpu.flags.carry = true;
@@ -718,6 +750,7 @@ fn INTEGRATION_CPU_sbc() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(2);
 
@@ -737,6 +770,7 @@ fn INTEGRATION_CPU_sbc_with_decimal_mode() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.reset();
 
     cpu.step_n(3);
 
@@ -762,6 +796,7 @@ fn INTEGRATION_CPU_can_load_code_segments_at_offsets() {
     for segment in segments {
         cpu.load(&segment.code[..], segment.address);
     }
+    cpu.reset();
 
     assert_eq!(&[0xA9, 0x35, 0x8D, 0x00, 0x40], &cpu.memory[0x2000..0x2005]);
     assert_eq!(&[0xA9, 0x00, 0x8D, 0x00, 0x01], &cpu.memory[0xABCD..0xABD2]);
