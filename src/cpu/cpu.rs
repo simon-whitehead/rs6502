@@ -415,12 +415,8 @@ impl Cpu {
     }
 
     fn brk(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
-
-        self.stack.push_u16(mem, self.registers.PC);
-        self.stack.push(mem, self.flags.to_u8());
-
-        self.flags.interrupt_disabled = true;
+        // Just call the IRQ handler - they're the same thing
+        self.irq();
     }
 
     fn bvc(&mut self, operand: &Operand) {
