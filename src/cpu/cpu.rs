@@ -1,3 +1,5 @@
+use byteorder::{LittleEndian, ByteOrder};
+
 use ::opcodes::{AddressingMode, OpCode};
 
 use cpu::cpu_error::CpuError;
@@ -6,10 +8,14 @@ use cpu::memory_bus::MemoryBus;
 use cpu::registers::Registers;
 use cpu::stack::Stack;
 
-const DEFAULT_CODE_SEGMENT_START_ADDRESS: u16 = 0xC000;  // Default to a 16KB ROM, leaving 32KB of main memory
+const DEFAULT_CODE_SEGMENT_START_ADDRESS: u16 = 0xC000;  // Default to a 16KB ROM, leaving 48KB of main memory
 
 const STACK_START: usize = 0x100;
 const STACK_END: usize = 0x1FF;
+
+const RESET_VECTOR: usize = 0xFFFC;
+const NMI_VECTOR: usize = 0xFFFA;
+const IRQ_VECTOR: usize = 0xFFFE;
 
 #[derive(Debug)]
 pub enum Operand {
@@ -24,8 +30,6 @@ pub struct Cpu {
     pub registers: Registers,
     pub flags: StatusFlags,
     pub stack: Stack,
-    code_start: usize,
-    code_size: usize,
 }
 
 pub type CpuLoadResult = Result<(), CpuError>;
@@ -40,8 +44,6 @@ impl Cpu {
             registers: Registers::new(),
             flags: Default::default(),
             stack: Stack::new(),
-            code_start: DEFAULT_CODE_SEGMENT_START_ADDRESS as usize,
-            code_size: 0,
         }
     }
 
@@ -56,6 +58,8 @@ impl Cpu {
             let addr = addr.unwrap();
             if addr as u32 + code.len() as u32 > u16::max_value() as u32 {
                 return Err(CpuError::code_segment_out_of_range(addr));
+            } else if addr == 0 {
+                DEFAULT_CODE_SEGMENT_START_ADDRESS
             } else {
                 addr
             }
@@ -69,37 +73,33 @@ impl Cpu {
 
         // Set the Program Counter to point at the
         // start address of the code segment
-        self.registers.PC = addr;
-
-        self.code_start = addr as usize;
-        self.code_size = code.len();
+        self.set_start_vector(addr);
 
         Ok(())
     }
 
-    pub fn get_code(&self) -> &[u8] {
-        &self.memory[self.code_start..self.code_start + self.code_size]
+    /// Sets the start vector in memory if its currently zero.
+    fn set_start_vector(&mut self, addr: u16) {
+        let current = LittleEndian::read_u16(&self.memory[RESET_VECTOR..]);
+        if current == 0 {
+            LittleEndian::write_u16(&mut self.memory[RESET_VECTOR..], addr);
+        }
     }
 
     /// Runs N instructions of code through the Cpu
     pub fn step_n(&mut self, n: u32) -> CpuMultiStepResult {
         let mut v = 0;
         for _ in 0..n {
-            if self.finished() {
-                break;
-            }
             v += self.step()? as u64;
         }
 
         Ok(v)
     }
 
-    pub fn finished(&self) -> bool {
-        self.registers.PC > self.code_start as u16 + self.code_size as u16 - 1
-    }
-
     pub fn reset(&mut self) {
-        self.registers.PC = self.code_start as u16;
+        self.registers = Default::default();
+        self.flags = Default::default();
+        self.registers.PC = LittleEndian::read_u16(&self.memory[RESET_VECTOR..]);
     }
 
     /// Runs a single instruction of code through the Cpu
@@ -238,6 +238,47 @@ impl Cpu {
         }
     }
 
+    /// Execute the Non-Maskable Interrupt handler. This ignores the interrupt
+    /// flag and forces execution to the NMI
+    pub fn nmi(&mut self) {
+        // Always handle an NMI
+        let handler_addr = LittleEndian::read_u16(&self.memory[NMI_VECTOR..]);
+
+        // ..unless its not set to something other than zero:
+        if handler_addr == 0 {
+            return;
+        }
+        let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
+
+        self.stack.push_u16(mem, self.registers.PC);
+        self.stack.push(mem, self.flags.to_u8());
+        self.flags.interrupt_disabled = true;
+        self.registers.PC = handler_addr;
+    }
+
+    /// Execute the Interrupt ReQuest handler if we currently are accepting
+    /// maskable interrupts. Ignore it otherwise.
+    pub fn irq(&mut self) {
+        // If interrupts are disabled, don't worry about this
+        if self.flags.interrupt_disabled {
+            return;
+        }
+
+        let handler_addr = LittleEndian::read_u16(&self.memory[IRQ_VECTOR..]);
+
+        // ..unless its not set to something other than zero:
+        if handler_addr == 0 {
+            return;
+        }
+
+        let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
+
+        self.stack.push_u16(mem, self.registers.PC);
+        self.stack.push(mem, self.flags.to_u8());
+        self.flags.interrupt_disabled = true;
+        self.registers.PC = handler_addr;
+    }
+
     // ## OpCode handlers ##
 
     fn adc(&mut self, operand: &Operand) {
@@ -374,12 +415,8 @@ impl Cpu {
     }
 
     fn brk(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
-
-        self.stack.push_u16(mem, self.registers.PC);
-        self.stack.push(mem, self.flags.to_u8());
-
-        self.flags.interrupt_disabled = true;
+        // Just call the IRQ handler - they're the same thing
+        self.irq();
     }
 
     fn bvc(&mut self, operand: &Operand) {
@@ -560,17 +597,17 @@ impl Cpu {
     fn pha(&mut self) {
         let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
-        self.stack.push(mem, self.registers.A);
+        self.stack.push(mem, self.registers.A).unwrap();
     }
 
     fn php(&mut self) {
         let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
-        self.stack.push(mem, self.flags.to_u8());
+        self.stack.push(mem, self.flags.to_u8()).unwrap();
     }
 
     fn pla(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
+        let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         let value = self.stack.pop(mem).unwrap();
 
@@ -578,7 +615,7 @@ impl Cpu {
     }
 
     fn plp(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
+        let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         let value = self.stack.pop(mem).unwrap();
 
@@ -646,10 +683,13 @@ impl Cpu {
     }
 
     fn rti(&mut self) {
-        let mut mem = &mut self.memory[STACK_START..STACK_END + 0x01];
+        let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
-        let value = self.stack.pop(mem).unwrap();
+        let value = self.stack.pop(mem).expect("ERR: Returning from an interrupt with an empty stack. Did you forget to set the interrupt handler address?");
+        let pc = self.stack.pop_u16(mem).expect("ERR: Returning from an interrupt with an empty stack. Did you forget to set the interrupt handler address?");
+
         self.flags = value.into();
+        self.registers.PC = pc;
     }
 
     fn sbc(&mut self, operand: &Operand) {
