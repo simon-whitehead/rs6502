@@ -75,7 +75,6 @@ impl Cpu {
         // start address of the code segment
         self.set_start_vector(addr);
 
-
         Ok(())
     }
 
