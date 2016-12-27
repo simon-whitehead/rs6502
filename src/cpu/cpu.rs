@@ -30,8 +30,6 @@ pub struct Cpu {
     pub registers: Registers,
     pub flags: StatusFlags,
     pub stack: Stack,
-    code_start: usize,
-    code_size: usize,
 }
 
 pub type CpuLoadResult = Result<(), CpuError>;
@@ -46,8 +44,6 @@ impl Cpu {
             registers: Registers::new(),
             flags: Default::default(),
             stack: Stack::new(),
-            code_start: DEFAULT_CODE_SEGMENT_START_ADDRESS as usize,
-            code_size: 0,
         }
     }
 
@@ -79,8 +75,6 @@ impl Cpu {
         // start address of the code segment
         self.set_start_vector(addr);
 
-        self.code_start = addr as usize;
-        self.code_size = code.len();
 
         Ok(())
     }
