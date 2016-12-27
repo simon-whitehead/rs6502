@@ -8,7 +8,7 @@ use cpu::memory_bus::MemoryBus;
 use cpu::registers::Registers;
 use cpu::stack::Stack;
 
-const DEFAULT_CODE_SEGMENT_START_ADDRESS: u16 = 0xC000;  // Default to a 16KB ROM, leaving 32KB of main memory
+const DEFAULT_CODE_SEGMENT_START_ADDRESS: u16 = 0xC000;  // Default to a 16KB ROM, leaving 48KB of main memory
 
 const STACK_START: usize = 0x100;
 const STACK_END: usize = 0x1FF;
