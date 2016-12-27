@@ -13,7 +13,7 @@ const DEFAULT_CODE_SEGMENT_START_ADDRESS: u16 = 0xC000;  // Default to a 16KB RO
 const STACK_START: usize = 0x100;
 const STACK_END: usize = 0x1FF;
 
-const RESET_VECTOR: usize: 0xFFFC;
+const RESET_VECTOR: usize = 0xFFFC;
 const NMI_VECTOR: usize = 0xFFFA;
 const IRQ_VECTOR: usize = 0xFFFE;
 
