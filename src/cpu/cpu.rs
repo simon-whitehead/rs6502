@@ -685,8 +685,8 @@ impl Cpu {
     fn rti(&mut self) {
         let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
-        let value = self.stack.pop(mem).unwrap();
-        let pc = self.stack.pop_u16(mem).unwrap();
+        let value = self.stack.pop(mem).expect("ERR: Returning from an interrupt with an empty stack. Did you forget to set the interrupt handler address?");
+        let pc = self.stack.pop_u16(mem).expect("ERR: Returning from an interrupt with an empty stack. Did you forget to set the interrupt handler address?");
 
         self.flags = value.into();
         self.registers.PC = pc;

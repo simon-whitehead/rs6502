@@ -712,7 +712,11 @@ fn INTEGRATION_CPU_ror() {
 #[test]
 fn INTEGRATION_CPU_brk_rti() {
     let asm = "
+        LDX #$20
+        STX $FFFF
         BRK
+
+    .ORG $2000
         RTI
     ";
 
@@ -721,13 +725,15 @@ fn INTEGRATION_CPU_brk_rti() {
 
     let segments = assembler.assemble_string(asm, None).unwrap();
     cpu.load(&segments[0].code[..], None);
+    cpu.load(&segments[1].code[..], segments[1].address);
     cpu.reset();
+    cpu.flags.interrupt_disabled = false;
 
     // Force set some flags first
     cpu.flags.carry = true;
     cpu.flags.decimal = true;
 
-    cpu.step(); // Push them to the stack
+    cpu.step_n(3); // Push them to the stack
 
     cpu.flags.carry = false;
     cpu.flags.decimal = false;
