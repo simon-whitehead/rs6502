@@ -109,6 +109,8 @@ impl Cpu {
     }
 
     pub fn reset(&mut self) {
+        self.registers = Default::default();
+        self.flags = Default::default();
         self.registers.PC = LittleEndian::read_u16(&self.memory[0xFFFC..]);
     }
 

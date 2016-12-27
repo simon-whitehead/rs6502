@@ -9,6 +9,12 @@ pub struct Registers {
 
 impl Registers {
     pub fn new() -> Registers {
+        Registers { ..Default::default() }
+    }
+}
+
+impl Default for Registers {
+    fn default() -> Registers {
         Registers {
             A: 0,
             X: 0,
