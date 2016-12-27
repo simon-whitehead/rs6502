@@ -13,8 +13,9 @@ const DEFAULT_CODE_SEGMENT_START_ADDRESS: u16 = 0xC000;  // Default to a 16KB RO
 const STACK_START: usize = 0x100;
 const STACK_END: usize = 0x1FF;
 
-const NMI_POINTER: usize = 0xFFFA;
-const IRQ_POINTER: usize = 0xFFFE;
+const RESET_VECTOR: usize: 0xFFFC;
+const NMI_VECTOR: usize = 0xFFFA;
+const IRQ_VECTOR: usize = 0xFFFE;
 
 #[derive(Debug)]
 pub enum Operand {
@@ -86,9 +87,9 @@ impl Cpu {
 
     /// Sets the start vector in memory if its currently zero.
     fn set_start_vector(&mut self, addr: u16) {
-        let current = LittleEndian::read_u16(&self.memory[0xFFFC..]);
+        let current = LittleEndian::read_u16(&self.memory[RESET_VECTOR..]);
         if current == 0 {
-            LittleEndian::write_u16(&mut self.memory[0xFFFC..], addr);
+            LittleEndian::write_u16(&mut self.memory[RESET_VECTOR..], addr);
         }
     }
 
@@ -109,7 +110,7 @@ impl Cpu {
     pub fn reset(&mut self) {
         self.registers = Default::default();
         self.flags = Default::default();
-        self.registers.PC = LittleEndian::read_u16(&self.memory[0xFFFC..]);
+        self.registers.PC = LittleEndian::read_u16(&self.memory[RESET_VECTOR..]);
     }
 
     /// Runs a single instruction of code through the Cpu
@@ -252,7 +253,7 @@ impl Cpu {
     /// flag and forces execution to the NMI
     pub fn nmi(&mut self) {
         // Always handle an NMI
-        let handler_addr = LittleEndian::read_u16(&self.memory[NMI_POINTER..]);
+        let handler_addr = LittleEndian::read_u16(&self.memory[NMI_VECTOR..]);
         let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         self.stack.push_u16(mem, self.registers.PC);
@@ -269,7 +270,7 @@ impl Cpu {
             return;
         }
 
-        let handler_addr = LittleEndian::read_u16(&self.memory[IRQ_POINTER..]);
+        let handler_addr = LittleEndian::read_u16(&self.memory[IRQ_VECTOR..]);
         let mem = &mut self.memory[STACK_START..STACK_END + 0x01];
 
         self.stack.push_u16(mem, self.registers.PC);
