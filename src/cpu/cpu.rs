@@ -93,10 +93,6 @@ impl Cpu {
         }
     }
 
-    pub fn get_code(&self) -> &[u8] {
-        &self.memory[self.code_start..self.code_start + self.code_size]
-    }
-
     /// Runs N instructions of code through the Cpu
     pub fn step_n(&mut self, n: u32) -> CpuMultiStepResult {
         let mut v = 0;
