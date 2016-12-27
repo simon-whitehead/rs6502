@@ -95,17 +95,10 @@ impl Cpu {
     pub fn step_n(&mut self, n: u32) -> CpuMultiStepResult {
         let mut v = 0;
         for _ in 0..n {
-            if self.finished() {
-                break;
-            }
             v += self.step()? as u64;
         }
 
         Ok(v)
-    }
-
-    pub fn finished(&self) -> bool {
-        self.registers.PC > self.code_start as u16 + self.code_size as u16 - 1
     }
 
     pub fn reset(&mut self) {
