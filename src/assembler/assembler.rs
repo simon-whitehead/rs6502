@@ -133,6 +133,11 @@ impl Assembler {
             } else if let ParserToken::RawByte(byte) = token {
                 // Push raw bytes directly into the output
                 current_segment.code.push(byte);
+            } else if let ParserToken::RawBytes(bytes) = token {
+                // Push raw bytes directly into output
+                for b in &bytes {
+                    current_segment.code.push(*b);
+                }
             } else if let ParserToken::LabelArg(ref label) = token {
                 // Labels as arguments should be in the symbol table, look
                 // it up and calculate the address direction/location
@@ -410,6 +415,63 @@ mod tests {
         ",
                              None)
             .unwrap();
+
+        assert_eq!(0xC000, segments[0].address);
+        assert_eq!(0x2000, segments[1].address);
+
+        assert_eq!(0x05, segments[0].code[0x01]);
+        assert_eq!(0x20, segments[0].code[0x02]);
+    }
+
+    #[test]
+    fn can_dump_raw_bytes() {
+        let mut assembler = Assembler::new();
+        let segments = assembler.assemble_string("
+            .ORG $C000
+
+            .BYTE #$40, #10, #$0A
+        ",
+                             None)
+            .unwrap();
+
+        assert_eq!(&[64, 10, 10], &segments[0].code[..]);
+    }
+
+    #[test]
+    fn can_dump_single_raw_byte() {
+        let mut assembler = Assembler::new();
+        let segments = assembler.assemble_string("
+            .ORG $C000
+
+            .BYTE #$FF
+        ",
+                             None)
+            .unwrap();
+
+        assert_eq!(&[255], &segments[0].code[..]);
+    }
+
+    #[test]
+    fn can_dump_bytes_with_other_code() {
+        let mut assembler = Assembler::new();
+        let segments = assembler.assemble_string("
+            .ORG $C000
+            JMP CALLBACK
+            .BYTE #$0A
+
+            .ORG $2000
+            LDA #$AA
+            STA $2001
+            .BYTE #$FE, #$CB
+
+            CALLBACK
+            LDX #$0A
+        ",
+                             None)
+            .unwrap();
+
+        assert_eq!(0x0A, segments[0].code[3]);
+        assert_eq!(&[0xFE, 0xCB], &segments[1].code[5..7]);
 
         assert_eq!(0xC000, segments[0].address);
         assert_eq!(0x2000, segments[1].address);

@@ -27,4 +27,5 @@ pub enum ParserToken {
     Absolute(String),
     RawByte(u8),
     OrgDirective(u16),
+    RawBytes(Vec<u8>),
 }
