@@ -133,6 +133,11 @@ impl Assembler {
             } else if let ParserToken::RawByte(byte) = token {
                 // Push raw bytes directly into the output
                 current_segment.code.push(byte);
+            } else if let ParserToken::RawBytes(bytes) = token {
+                // Push raw bytes directly into output
+                for b in &bytes {
+                    current_segment.code.push(*b);
+                }
             } else if let ParserToken::LabelArg(ref label) = token {
                 // Labels as arguments should be in the symbol table, look
                 // it up and calculate the address direction/location
@@ -416,5 +421,19 @@ mod tests {
 
         assert_eq!(0x05, segments[0].code[0x01]);
         assert_eq!(0x20, segments[0].code[0x02]);
+    }
+
+    #[test]
+    fn can_dump_raw_bytes() {
+        let mut assembler = Assembler::new();
+        let segments = assembler.assemble_string("
+            .ORG $C000
+
+            .BYTE #$40, #10, #$0A
+        ",
+                             None)
+            .unwrap();
+
+        assert_eq!(&[64, 10, 10], &segments[0].code[..]);
     }
 }

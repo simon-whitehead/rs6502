@@ -13,6 +13,10 @@ pub struct ParserError {
 }
 
 impl ParserError {
+    fn expected_immediate(line: u32) -> ParserError {
+        ParserError::from(format!("Immediate value expected. Line {}", line))
+    }
+
     fn expected_instruction(line: u32) -> ParserError {
         ParserError::from(format!("Instruction expected. Line {}", line))
     }
@@ -169,6 +173,9 @@ impl Parser {
                     match &directive[..] {
                         "ORG" => {
                             result.push(self.consume_org_directive(&mut peeker)?);
+                        }
+                        "BYTE" => {
+                            result.push(self.consume_byte_directive(&mut peeker)?);
                         }
                         _ => return Err(ParserError::unknown_identifier(self.line)),
                     }
@@ -502,6 +509,66 @@ impl Parser {
         } else {
             return Err(ParserError::expected_address(self.line));
         }
+    }
+
+    fn consume_byte_directive<'a, I>(&mut self,
+                                     mut peeker: &mut Peekable<I>)
+                                     -> Result<ParserToken, ParserError>
+        where I: Iterator<Item = &'a LexerToken>
+    {
+        let mut result = Vec::new();
+
+        // Jump over the directive
+        peeker.next();
+        if let None = peeker.peek() {
+            return Err(ParserError::expected_immediate(self.line));
+        }
+
+        loop {
+            let mut next = peeker.next().unwrap();
+            if let &LexerToken::Ident(ref ident) = next {
+                let variable = self.get_variable_value(ident.clone())?;
+                if let LexerToken::Immediate(ref value, base) = variable.0 {
+                    let immediate = self.unwrap_immediate(&value[..], base);
+                    result.push(immediate);
+                } else {
+                    return Err(ParserError::expected_immediate(self.line));
+                }
+            } else if let &LexerToken::Immediate(ref value, base) = next {
+                let immediate = self.unwrap_immediate(&value[..], base);
+                result.push(immediate);
+            } else {
+                return Err(ParserError::expected_immediate(self.line));
+            }
+
+            // Check if the next thing is a comma. If it is, consume it and go again
+            if let None = peeker.peek() {
+                break;
+            }
+
+            let next = peeker.next().unwrap();
+            if let &LexerToken::Comma = next {
+                // Awesome, go again
+            } else {
+                break;
+            }
+        }
+
+        Ok(ParserToken::RawBytes(result))
+    }
+
+    fn unwrap_immediate<S>(&self, value: S, base: ImmediateBase) -> u8
+        where S: Into<String>
+    {
+        let base = match base {
+            ImmediateBase::Base10 => 10,
+            ImmediateBase::Base16 => 16,
+        };
+
+        let value = value.into();
+        let immediate = u8::from_str_radix(&value[..], base).unwrap();
+
+        immediate
     }
 
     fn parse_address_bytes(&self, address: &str) -> Result<Vec<u8>, ParserError> {
