@@ -1,6 +1,6 @@
 [package]
 name = "rs6502"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Simon Whitehead <chemnova@gmail.com>"]
 repository = "https://github.com/simon-whitehead/rs6502"
 description = "A 6502 Microprocessor tool suite. Includes a Disassembler, Assembler and Emulator."
