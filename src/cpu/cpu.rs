@@ -56,7 +56,7 @@ impl Cpu {
         let addr = addr.into();
         let addr: u16 = if addr.is_some() {
             let addr = addr.unwrap();
-            if addr as u32 + code.len() as u32 > u16::max_value() as u32 {
+            if addr as u32 + code.len() as u32 - 1 > u16::max_value() as u32 {
                 return Err(CpuError::code_segment_out_of_range(addr));
             } else if addr == 0 {
                 DEFAULT_CODE_SEGMENT_START_ADDRESS
