@@ -436,4 +436,47 @@ mod tests {
 
         assert_eq!(&[64, 10, 10], &segments[0].code[..]);
     }
+
+    #[test]
+    fn can_dump_single_raw_byte() {
+        let mut assembler = Assembler::new();
+        let segments = assembler.assemble_string("
+            .ORG $C000
+
+            .BYTE #$FF
+        ",
+                             None)
+            .unwrap();
+
+        assert_eq!(&[255], &segments[0].code[..]);
+    }
+
+    #[test]
+    fn can_dump_bytes_with_other_code() {
+        let mut assembler = Assembler::new();
+        let segments = assembler.assemble_string("
+            .ORG $C000
+            JMP CALLBACK
+            .BYTE #$0A
+
+            .ORG $2000
+            LDA #$AA
+            STA $2001
+            .BYTE #$FE, #$CB
+
+            CALLBACK
+            LDX #$0A
+        ",
+                             None)
+            .unwrap();
+
+        assert_eq!(0x0A, segments[0].code[3]);
+        assert_eq!(&[0xFE, 0xCB], &segments[1].code[5..7]);
+
+        assert_eq!(0xC000, segments[0].address);
+        assert_eq!(0x2000, segments[1].address);
+
+        assert_eq!(0x05, segments[0].code[0x01]);
+        assert_eq!(0x20, segments[0].code[0x02]);
+    }
 }
