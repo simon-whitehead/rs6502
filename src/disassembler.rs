@@ -236,7 +236,15 @@ impl Disassembler {
                 result.push((opcode_text, i as u16));
                 i += opcode.length as usize;
             } else {
-                panic!("Unsupported opcode");
+                let opcode_text = if self.disable_offsets {
+                    format!("{:02X}\n", raw[i] as u8)
+                } else {
+                    format!("{:04X} {:02X}\n",
+                            i + self.code_offset as usize,
+                            raw[i] as u8)
+                };
+                result.push((opcode_text, i as u16));
+                i += 0x01;
             }
         }
 
@@ -460,6 +468,21 @@ mod tests {
             0006 DEX
             0007 BNE $0003
             0009 RTS
+
+        "),
+                   Disassembler::clean_asm(asm));
+    }
+
+    #[test]
+    fn dumps_unknown_bytes() {
+        let dasm = Disassembler::new();
+        let code: Vec<u8> = vec![0xA9, 0xC8, 0x43];
+        let asm = dasm.disassemble(&code);
+
+        assert_eq!(Disassembler::clean_asm("
+
+            0000 LDA #$C8 
+            0002 43
 
         "),
                    Disassembler::clean_asm(asm));
