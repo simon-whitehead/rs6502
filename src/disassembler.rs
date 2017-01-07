@@ -161,13 +161,17 @@ impl Disassembler {
                         let b1 = raw[i + 0x01];
                         let offset = b1 as i8;
                         let addr = if offset < 0 {
-                            i - (-offset - 0x02) as usize
+                            if i >= -offset as usize - 0x02 {
+                                i - (-offset as usize - 0x02) as usize
+                            } else {
+                                b1 as usize   // Failsafe for potential overflow when disassembling raw bytes .. just dump the byte
+                            }
                         } else {
                             i + (offset as usize) + 0x02
                         };
 
                         (format!("{:02X} {:02X}", opcode.code, b1),
-                         format!(" ${:04X}", self.code_offset as usize + addr))
+                         format!(" ${:04X}", self.code_offset as isize + addr as isize))
                     }
                     AddressingMode::ZeroPage => {
                         let b1 = raw[i + 0x01];

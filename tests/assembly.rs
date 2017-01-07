@@ -50,3 +50,26 @@ fn INTEGRATION_ASSEMBLY_can_assemble_disassemble_clearmem_implementation() {
                    .join("\n"),
                clean_disassembled);
 }
+
+#[test]
+#[allow(non_snake_case)]
+fn INTEGRATION_ASSEMBLY_can_assemble_disassemble_random_memory_segments() {
+    let asm = "
+        .ORG $D006
+        .BYTE #$10, #$D0
+    ";
+
+    let mut assembler = rs6502::Assembler::new();
+    let disassembler = rs6502::Disassembler::new();
+
+    let segments = assembler.assemble_string(asm, None).unwrap();
+    let disassembled = rs6502::Disassembler::clean_asm(disassembler.disassemble(&segments[0].code));
+
+    let clean_disassembled = disassembled.join("\n");
+
+    assert_eq!(rs6502::Disassembler::clean_asm("
+        0000 BPL $00D0
+    ")
+                   .join("\n"),
+               clean_disassembled);
+}
