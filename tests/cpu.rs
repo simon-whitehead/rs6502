@@ -658,5 +658,78 @@ mod tests {
             assert_eq!(0x55, cpu.registers.A);
             assert_eq!(0x0007, cpu.registers.PC);
         }
-    }
+
+        #[test]
+        fn dex_wraps() {
+            let code = vec![0xA2, 0x00, 0xCA];
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+            cpu.reset();
+
+            cpu.step_n(2);
+            assert_eq!(0xFF, cpu.registers.X);
+        }
+
+        #[test]
+        fn dey_wraps() {
+            let code = vec![0xA0, 0x00, 0x88];
+            let mut cpu = Cpu::new();
+            let _ = cpu.load(&code[..], None);
+            cpu.reset();
+
+            let _ = cpu.step_n(2);
+            assert_eq!(0xFF, cpu.registers.Y);
+        }
+
+        #[test]
+        fn dec_wraps() {
+            let disasm = Disassembler::new();
+            let code = vec![0xA9, 0x00, 0x85, 0x85, 0xC6, 0x85];
+            println!("{}", disasm.disassemble(&code));
+
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+            cpu.reset();
+
+            cpu.step_n(10);
+
+            assert_eq!(0xFF, cpu.memory[0x85]);
+        }
+
+        #[test]
+        fn inx_wraps() {
+            let code = vec![0xA2, 0xFF, 0xE8];
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+            cpu.reset();
+
+            cpu.step_n(10);
+
+            assert_eq!(0x00, cpu.registers.X);
+        }
+
+        #[test]
+        fn iny_wraps() {
+            let code = vec![0xA0, 0xFF, 0xC8];
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+            cpu.reset();
+
+            cpu.step_n(20);
+
+            assert_eq!(0x00, cpu.registers.Y);
+        }
+
+        #[test]
+        fn inc_wraps() {
+            let code = vec![0xA9, 0xFF, 0x85, 0x85, 0xE6, 0x85];
+            let mut cpu = Cpu::new();
+            cpu.load(&code[..], None);
+            cpu.reset();
+
+            cpu.step_n(10);
+
+            assert_eq!(0x00, cpu.memory[0x85]);
+        }
+   }
 }

@@ -463,7 +463,7 @@ impl Cpu {
     fn dec(&mut self, operand: &Operand) {
         let value = self.unwrap_immediate(&operand);
         let addr = self.unwrap_address(&operand);
-        let result = value - 1;
+        let result = value.wrapping_sub(1);
 
         self.write_byte(addr, result);
 
@@ -472,14 +472,14 @@ impl Cpu {
     }
 
     fn dex(&mut self) {
-        self.registers.X -= 0x01;
+        self.registers.X = self.registers.X.wrapping_sub(1);
 
         self.flags.sign = self.registers.X & 0x80 == 0x80;
         self.flags.zero = self.registers.X & 0xFF == 0x00;
     }
 
     fn dey(&mut self) {
-        self.registers.Y -= 0x01;
+        self.registers.Y = self.registers.Y.wrapping_sub(1);
 
         self.flags.sign = self.registers.Y & 0x80 == 0x80;
         self.flags.zero = self.registers.Y & 0xFF == 0x00;
@@ -498,7 +498,7 @@ impl Cpu {
     fn inc(&mut self, operand: &Operand) {
         let value = self.unwrap_immediate(&operand);
         let addr = self.unwrap_address(&operand);
-        let result = value + 1;
+        let result = value.wrapping_add(1);
 
         self.write_byte(addr, result);
 
@@ -507,14 +507,14 @@ impl Cpu {
     }
 
     fn inx(&mut self) {
-        self.registers.X += 0x01;
+        self.registers.X = self.registers.X.wrapping_add(1);
 
         self.flags.sign = self.registers.X & 0x80 == 0x80;
         self.flags.zero = self.registers.X & 0xFF == 0x00;
     }
 
     fn iny(&mut self) {
-        self.registers.Y += 0x01;
+        self.registers.Y = self.registers.Y.wrapping_add(1);
 
         self.flags.sign = self.registers.Y & 0x80 == 0x80;
         self.flags.zero = self.registers.Y & 0xFF == 0x00;
